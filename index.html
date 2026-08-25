@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>αγορά</title>
+<style>
+:root{--cream:#FDFBF7;--wine:#145A32;--wine2:#0E3D22;--ink:#2C2C2C;--line:#e9e2d6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Georgia',serif;background:var(--cream);color:var(--ink);min-height:100vh}
+.sans{font-family:-apple-system,'Segoe UI',Roboto,sans-serif}
+.hidden{display:none!important}
+
+/* --- AUTH --- */
+#auth{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.brand{font-size:52px;letter-spacing:2px;color:var(--wine);margin-bottom:2px}
+.brand-sub{font-family:sans-serif;font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#9a9a9a;margin-bottom:36px}
+.card{width:100%;max-width:340px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px 24px;box-shadow:0 8px 24px rgba(20,90,50,.08)}
+.tabs{display:flex;margin-bottom:20px;border-bottom:1px solid var(--line)}
+.tab{flex:1;text-align:center;padding:10px 0;font-family:sans-serif;font-size:14px;color:#999;cursor:pointer;border-bottom:2px solid transparent}
+.tab.active{color:var(--wine);border-color:var(--wine);font-weight:600}
+.field{margin-bottom:14px}
+.field label{display:block;font-family:sans-serif;font-size:12px;color:#888;margin-bottom:5px}
+.field input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:sans-serif;font-size:14px;background:var(--cream)}
+.field input:focus{outline:none;border-color:var(--wine)}
+.btn{width:100%;padding:13px;border:none;border-radius:9px;background:var(--wine);color:#fff;font-family:sans-serif;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:.3px}
+.btn:hover{background:var(--wine2)}
+.btn-ghost{background:none;color:var(--wine);border:1px solid var(--wine)}
+.hint{text-align:center;font-family:sans-serif;font-size:11px;color:#aaa;margin-top:18px}
+.err{font-family:sans-serif;font-size:12px;color:var(--wine);background:#fdecec;border:1px solid #f3c9c9;border-radius:8px;padding:8px 10px;margin-bottom:14px;display:none}
+.err.show{display:block}
+.ok{font-family:sans-serif;font-size:12px;color:#2e7d32;background:#eaf5ea;border:1px solid #c6e4c6;border-radius:8px;padding:8px 10px;margin-bottom:14px;display:none}
+.ok.show{display:block}
+
+/* --- APP SHELL --- */
+#app{min-height:100vh;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line)}
+.topbar .brand{font-size:24px;margin:0}
+.topbar-right{display:flex;align-items:center;gap:10px}
+.cls{font-family:sans-serif;font-size:11px;color:#999;letter-spacing:1px;text-transform:uppercase}
+.dots-btn{background:none;border:none;cursor:pointer;color:var(--wine);padding:4px;display:flex}
+.dots-btn svg{width:22px;height:22px}
+.topbar-avatar{background:none;border:none;cursor:pointer;padding:0}
+.topbar-avatar .avatar{width:32px;height:32px;font-size:12px}
+.field input:disabled{background:#f1ede3;color:#555;cursor:default}
+
+.overlay{position:fixed;inset:0;background:rgba(44,44,44,.45);display:flex;align-items:flex-start;justify-content:flex-end;z-index:100;padding:64px 16px}
+.overlay.hidden{display:none}
+.members-panel{background:#fff;border-radius:14px;width:100%;max-width:300px;max-height:70vh;overflow-y:auto;box-shadow:0 12px 32px rgba(0,0,0,.18)}
+.members-head{padding:14px 16px;border-bottom:1px solid var(--line);font-family:sans-serif;font-weight:700;font-size:14px;color:var(--wine);display:flex;justify-content:space-between;align-items:center}
+.members-head span.count{color:#999;font-weight:400;font-size:12px}
+.member-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #f2ede2}
+.member-row:last-child{border-bottom:none}
+.member-row .avatar{width:32px;height:32px;font-size:12px}
+.member-row .m-name{font-family:sans-serif;font-size:13px;font-weight:600;flex:1}
+main{flex:1;overflow-y:auto;padding-bottom:170px}
+.section{padding:18px 16px;max-width:640px;margin:0 auto}
+.section h2{font-size:20px;color:var(--wine);margin-bottom:16px;font-weight:600}
+
+/* nav */
+nav.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;padding:8px 0 max(8px,env(safe-area-inset-bottom));z-index:50}
+.navbtn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:none;font-family:sans-serif;font-size:11px;color:#999;cursor:pointer;padding:6px 0}
+.navbtn svg{width:23px;height:23px;stroke:#999;fill:none;stroke-width:1.8}
+.navbtn.active{color:var(--wine)}
+.navbtn.active svg{stroke:var(--wine)}
+
+/* --- SOCIAL --- */
+.empty-feed{text-align:center;padding:60px 20px;color:#aaa;font-family:sans-serif}
+.empty-feed .ico{font-size:40px;margin-bottom:14px}
+.empty-feed p{font-size:13.5px;line-height:1.5;max-width:280px;margin:0 auto}
+.post{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:18px;overflow:hidden}
+.post-head{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:700;font-size:14px;overflow:hidden;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.post-head .name{font-family:sans-serif;font-size:13.5px;font-weight:600}
+.post-head .subj{font-family:sans-serif;font-size:11px;color:var(--wine)}
+.post-del{margin-left:auto;background:none;border:none;color:#aaa;cursor:pointer;font-size:15px;padding:4px}
+.post-del:hover{color:var(--wine)}
+.post-img{width:100%;aspect-ratio:4/3;background:repeating-linear-gradient(45deg,#f1ece2,#f1ece2 12px,#e9e2d3 12px,#e9e2d3 24px);display:flex;align-items:center;justify-content:center;font-family:sans-serif;color:#b8ac96;font-size:12px}
+.post-body{padding:12px 14px}
+.post-body p{font-family:sans-serif;font-size:13.5px;line-height:1.5;color:#444;margin-bottom:12px}
+.comments{padding:0 14px 10px;display:flex;flex-direction:column;gap:6px}
+.comment{font-family:sans-serif;font-size:12.5px;line-height:1.4;color:#555}
+.comment b{color:var(--wine);font-weight:600}
+.reply-row{display:flex;gap:8px;padding:0 14px 14px}
+.reply-row input{flex:1;border:1px solid var(--line);border-radius:16px;padding:7px 12px;font-family:sans-serif;font-size:12.5px;background:var(--cream)}
+.reply-row input:focus{outline:none;border-color:var(--wine)}
+.reply-row button{background:none;border:none;color:var(--wine);font-family:sans-serif;font-weight:600;font-size:12.5px;cursor:pointer;padding:0 4px}
+.req-btn{font-family:sans-serif;font-size:13px;font-weight:600;color:var(--wine);background:var(--cream);border:1px solid var(--wine);padding:8px 14px;border-radius:20px;cursor:pointer}
+.req-btn.sent{background:var(--wine);color:#fff;cursor:default}
+
+/* --- FAB / MODALI --- */
+.fab{position:fixed;right:20px;bottom:86px;width:56px;height:56px;border-radius:50%;background:var(--wine);color:#fff;border:none;font-size:28px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(20,90,50,.35);cursor:pointer;z-index:40}
+.fab.hidden{display:none!important}
+.fab:hover{background:var(--wine2)}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(44,44,44,.45);display:flex;align-items:center;justify-content:center;z-index:120;padding:20px}
+.modal-overlay.hidden{display:none}
+.modal-card{background:#fff;border-radius:16px;width:100%;max-width:360px;max-height:85vh;overflow-y:auto;padding:22px 20px}
+.modal-card h3{color:var(--wine);font-size:17px;margin-bottom:16px}
+.photo-picker{display:flex;align-items:center;gap:10px;border:1.5px dashed var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;font-family:sans-serif;font-size:13px;color:var(--wine);margin-bottom:14px}
+.photo-picker svg{width:20px;height:20px;stroke:var(--wine);fill:none;stroke-width:1.8;flex-shrink:0}
+.photo-preview{position:relative;margin-bottom:14px}
+.photo-preview img{width:100%;max-height:160px;object-fit:cover;border-radius:10px;display:block}
+.photo-preview .rm{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(44,44,44,.65);color:#fff;border:none;cursor:pointer;font-size:13px}
+.field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:sans-serif;font-size:14px;background:var(--cream);resize:vertical;min-height:70px}
+.field textarea:focus{outline:none;border-color:var(--wine)}
+.modal-actions{display:flex;gap:10px;margin-top:6px}
+.modal-actions .btn-ghost2{flex:1;background:none;border:1px solid var(--line);color:#888}
+.modal-actions .btn{flex:1}
+
+/* --- PROMEMORIA --- */
+.rem-item{display:flex;gap:14px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px}
+.rem-item .rem-info{flex:1}
+.rem-actions{display:flex;gap:6px}
+.rem-actions button{width:28px;height:28px;border-radius:50%;border:1px solid var(--line);background:var(--cream);color:var(--wine);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
+.rem-date{flex-shrink:0;width:48px;height:48px;border-radius:10px;background:var(--wine);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:sans-serif}
+.rem-date .d{font-size:16px;font-weight:700;line-height:1}
+.rem-date .m{font-size:9px;text-transform:uppercase;letter-spacing:.5px}
+.rem-info .t{font-family:sans-serif;font-size:14px;font-weight:600}
+.rem-info .s{font-family:sans-serif;font-size:12px;color:#999}
+.add-rem{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:14px;border:1.5px dashed var(--wine);border-radius:12px;background:none;color:var(--wine);font-family:sans-serif;font-weight:600;font-size:14px;cursor:pointer;margin-top:6px}
+
+/* --- IA --- */
+.chat-box{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.msg{max-width:82%;padding:10px 14px;border-radius:14px;font-family:sans-serif;font-size:13.5px;line-height:1.45}
+.msg.bot{background:#fff;border:1.5px solid var(--wine);color:var(--ink);align-self:flex-start;border-bottom-left-radius:4px}
+.msg.bot.ia-error{background:#fdecec;border:1.5px solid #d94141;color:#8a1f1f}
+.msg.user{background:var(--wine);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+.msg-label{display:block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;opacity:.65;margin-bottom:3px}
+.ia-warn{font-family:sans-serif;font-size:13px;color:#a15c00;background:#fdf3e2;border:1px solid #f0d9b0;border-radius:9px;padding:10px 12px}
+.ia-input{position:fixed;left:0;right:0;bottom:64px;background:var(--cream);padding-top:8px;border-top:1px solid var(--line);z-index:45;box-shadow:0 -4px 14px rgba(0,0,0,.04)}
+.ia-input-row{display:flex;gap:8px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:6px 6px 6px 16px;align-items:center}
+.ia-input-row input{flex:1;border:none;background:none;font-family:sans-serif;font-size:14px}
+.ia-input-row input:focus{outline:none}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:none;background:var(--cream);color:var(--wine);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn.send{background:var(--wine);color:#fff}
+.file-tag{font-family:sans-serif;font-size:11px;color:var(--wine);padding:0 4px 4px}
+
+.result-block{margin-top:6px}
+.result-block h3{font-size:15px;color:var(--wine);margin:14px 0 8px;font-family:sans-serif;font-weight:700}
+.flash-row{display:flex;gap:12px;margin-bottom:10px}
+.flashcard{flex:1;height:110px;perspective:800px;cursor:pointer}
+.flash-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flashcard.flipped .flash-inner{transform:rotateY(180deg)}
+.flash-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:12px;display:flex;align-items:center;justify-content:center;text-align:center;padding:10px;font-family:sans-serif;font-size:13px;border:1px solid var(--line)}
+.flash-front{background:#fff;color:var(--ink);font-weight:600}
+.flash-back{background:var(--wine);color:#fff;transform:rotateY(180deg)}
+.quiz-q{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px;font-family:sans-serif}
+.quiz-q p{font-size:13.5px;font-weight:600;margin-bottom:10px}
+.quiz-opt{display:block;width:100%;text-align:left;padding:9px 12px;margin-bottom:7px;border:1px solid var(--line);border-radius:8px;background:var(--cream);font-family:sans-serif;font-size:13px;cursor:pointer}
+.quiz-opt.correct{background:#2e7d32;border-color:#2e7d32;color:#fff}
+.quiz-opt.wrong{background:var(--wine);border-color:var(--wine);color:#fff}
+.typing{font-family:sans-serif;font-size:12px;color:#aaa;font-style:italic}
+.ia-status{font-family:sans-serif;font-size:12.5px;padding:9px 12px;border-radius:9px;margin-bottom:14px;border:1px solid var(--line);background:#fff;transition:opacity .4s ease}
+.ia-status-loading{color:var(--wine);border-color:var(--wine)}
+.ia-status-ok{color:#2e7d32;border-color:#c6e4c6;background:#eaf5ea}
+.ia-status-err{color:#a15c00;border-color:#f0d9b0;background:#fdf3e2}
+
+/* ==== ANIMAZIONI ==== */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(38px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes popIn{0%{opacity:0;transform:scale(.6) rotate(-3deg)}70%{opacity:1;transform:scale(1.06) rotate(1deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulseSoft{0%,100%{opacity:1}50%{opacity:.5}}
+@keyframes brandIn{0%{opacity:0;letter-spacing:14px;transform:translateY(-10px)}100%{opacity:1;letter-spacing:2px;transform:translateY(0)}}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes glowPulse{0%,100%{box-shadow:0 8px 20px rgba(20,90,50,.35)}50%{box-shadow:0 8px 32px rgba(20,90,50,.6)}}
+@keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+
+html{scroll-behavior:smooth}
+
+/* ingresso schermata login/registrazione */
+.card{animation:popIn .65s cubic-bezier(.22,1,.36,1)}
+.brand{animation:brandIn 1s cubic-bezier(.22,1,.36,1) both}
+.brand-sub{animation:fadeInUp .7s ease .25s both}
+
+/* cambio sezione (feed/promemoria/IA) */
+.section{animation:fadeInUp .45s cubic-bezier(.22,1,.36,1)}
+.tab.active{animation:fadeIn .3s ease}
+
+/* comparsa elementi delle liste, con effetto "a cascata" ben visibile */
+.post,.rem-item,.flashcard,.msg,.member-row,.quiz-q{animation:fadeInUp .55s cubic-bezier(.22,1,.36,1) both}
+.post:nth-child(1),.rem-item:nth-child(1),.member-row:nth-child(1){animation-delay:.04s}
+.post:nth-child(2),.rem-item:nth-child(2),.member-row:nth-child(2){animation-delay:.13s}
+.post:nth-child(3),.rem-item:nth-child(3),.member-row:nth-child(3){animation-delay:.22s}
+.post:nth-child(4),.rem-item:nth-child(4),.member-row:nth-child(4){animation-delay:.31s}
+.post:nth-child(5),.rem-item:nth-child(5),.member-row:nth-child(5){animation-delay:.40s}
+.post:nth-child(6),.rem-item:nth-child(6),.member-row:nth-child(6){animation-delay:.49s}
+.flashcard:nth-child(1){animation-delay:.08s}
+.flashcard:nth-child(2){animation-delay:.22s}
+.flashcard:nth-child(3){animation-delay:.36s}
+
+/* finestre modali e pannelli */
+.modal-overlay:not(.hidden){animation:fadeIn .25s ease}
+.modal-overlay:not(.hidden) .modal-card{animation:popIn .5s cubic-bezier(.22,1,.36,1)}
+.overlay:not(.hidden){animation:fadeIn .25s ease}
+.overlay:not(.hidden) .members-panel{animation:slideDown .4s cubic-bezier(.22,1,.36,1)}
+
+/* micro-interazioni sui controlli, molto più marcate */
+.btn,.navbtn,.fab,.req-btn,.icon-btn,.rem-actions button,.quiz-opt,.add-rem,.topbar-avatar{
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .15s ease,box-shadow .25s ease,color .15s ease;
+}
+.btn:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 10px 22px rgba(20,90,50,.3)}
+.btn:active,.icon-btn:active,.req-btn:active,.rem-actions button:active,.quiz-opt:not(:disabled):active,.add-rem:active{
+  transform:scale(.92);
+}
+.navbtn{transform:scale(1)}
+.navbtn:active{transform:scale(.85)}
+.navbtn.active{animation:fadeIn .3s ease}
+.navbtn.active svg{animation:popIn .4s cubic-bezier(.22,1,.36,1)}
+
+/* pulsante "+" fluttuante: pulsa piano da fermo, "esplode" all'hover */
+.fab{animation:floatY 2.6s ease-in-out infinite,glowPulse 2.6s ease-in-out infinite}
+.fab:hover{transform:scale(1.15) rotate(90deg);animation:none}
+.fab:active{transform:scale(.9) rotate(90deg)}
+
+.topbar-avatar:hover .avatar{transform:scale(1.15) rotate(-4deg)}
+.avatar{transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
+
+/* i post e i promemoria "si sollevano" bene al passaggio del mouse */
+.post,.rem-item{transition:box-shadow .25s ease,transform .25s cubic-bezier(.22,1,.36,1)}
+.post:hover{box-shadow:0 16px 36px rgba(20,90,50,.16);transform:translateY(-5px) scale(1.01)}
+.rem-item:hover{box-shadow:0 12px 28px rgba(20,90,50,.12);transform:translateY(-3px) scale(1.01)}
+
+/* bolla IA che "respira" mentre Gemma 4 sta elaborando */
+.msg.bot.typing{animation:fadeIn .3s ease,pulseSoft 1.2s ease-in-out infinite}
+
+/* barra di stato IA: effetto shimmer mentre carica */
+.ia-status-loading{background:linear-gradient(90deg,#fff 25%,#eef6ee 50%,#fff 75%);background-size:200% 100%;animation:shimmer 1.6s linear infinite}
+
+/* risposta corretta/sbagliata nel quiz, ingresso più energico */
+.quiz-opt.correct,.quiz-opt.wrong{animation:popIn .35s cubic-bezier(.22,1,.36,1)}
+
+/* le flashcard "danzano" leggermente al passaggio del mouse */
+.flashcard{transition:transform .2s ease}
+.flashcard:hover{transform:translateY(-4px)}
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="auth">
+  <div class="brand">αγορά</div>
+  <div class="brand-sub">2ª — Liceo Classico</div>
+  <div class="card">
+    <div class="tabs">
+      <div class="tab active" id="tabLogin" onclick="switchTab('login')">Accedi</div>
+      <div class="tab" id="tabReg" onclick="switchTab('reg')">Registrati</div>
+    </div>
+
+    <div id="loginForm">
+      <div class="err" id="loginErr"></div>
+      <div class="field"><label>Nome utente</label><input type="text" id="loginUser" placeholder="mario.rossi"></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPass" placeholder="••••••••"></div>
+      <button class="btn" onclick="tryLogin()">Accedi</button>
+    </div>
+
+    <div id="regForm" class="hidden">
+      <div class="err" id="regErr"></div>
+      <div class="ok" id="regOk"></div>
+
+      <label class="photo-picker" id="avatarPickerLabel">
+        <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        <span id="avatarPickerText">Aggiungi foto profilo (opzionale)</span>
+        <input type="file" accept="image/*" id="avatarFileInput" class="hidden" onchange="handleAvatarFile(event)">
+      </label>
+      <div class="photo-preview hidden" id="avatarPreview" style="text-align:center">
+        <img id="avatarPreviewImg" src="" style="width:84px;height:84px;border-radius:50%;object-fit:cover;margin:0 auto;display:block">
+        <a href="#" onclick="removeAvatarPhoto();return false;" style="display:block;margin-top:8px;font-family:sans-serif;font-size:12px;color:var(--wine)">Rimuovi foto</a>
+      </div>
+
+      <div class="field"><label>Nome e cognome</label><input type="text" id="regName" placeholder="Mario Rossi"></div>
+      <div class="field"><label>Nome utente</label><input type="text" id="regUser" placeholder="mario.rossi"></div>
+      <div class="field"><label>Password</label><input type="password" id="regPass" placeholder="••••••••"></div>
+      <button class="btn" onclick="tryRegister()">Crea account</button>
+    </div>
+
+    <div class="hint">Accesso riservato agli studenti della 2ª Classico</div>
+
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="hidden">
+  <div class="topbar">
+    <div class="brand">αγορά</div>
+    <div class="topbar-right">
+      <div class="cls" id="topbarUser">2ª Classico</div>
+      <button class="dots-btn" onclick="toggleMembers()" title="Utenti collegati">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+      </button>
+      <button class="topbar-avatar" id="topbarAvatarBtn" onclick="openProfileModal()" title="Il tuo profilo">
+        <div class="avatar" id="topbarAvatarImg"></div>
+      </button>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="membersOverlay" onclick="if(event.target===this)toggleMembers()">
+    <div class="members-panel">
+      <div class="members-head"><span>Utenti collegati</span><span class="count" id="membersCount">0</span></div>
+      <div id="membersList"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="profileModal" onclick="if(event.target===this)closeProfileModal()">
+    <div class="modal-card">
+      <h3>Il tuo profilo</h3>
+      <div style="text-align:center;margin-bottom:16px">
+        <div class="avatar" id="profileAvatarPreview" style="width:84px;height:84px;font-size:28px;margin:0 auto 10px"></div>
+        <label class="photo-picker" id="profilePhotoPickerLabel" style="justify-content:center;margin-bottom:0">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+          <span>Cambia foto profilo</span>
+          <input type="file" accept="image/*" id="profileAvatarInput" class="hidden" onchange="handleProfileAvatarFile(event)">
+        </label>
+      </div>
+      <div class="err" id="profileErr"></div>
+      <div class="ok" id="profileOk"></div>
+      <div class="field"><label>Nome utente</label><input type="text" id="profileUserDisplay" readonly></div>
+      <div class="field"><label>Nuova password (lascia vuoto per non cambiarla)</label><input type="password" id="profilePassDisplay" placeholder="••••••"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost2" onclick="logout()" style="color:var(--wine)">Esci</button>
+        <button class="btn btn-ghost2" onclick="closeProfileModal()">Chiudi</button>
+        <button class="btn" onclick="saveProfileChanges()">Salva modifiche</button>
+      </div>
+    </div>
+  </div>
+
+  <main>
+    <!-- SOCIAL -->
+    <section id="sec-social" class="section">
+      <h2>Feed appunti</h2>
+      <div id="postsList"></div>
+      <div class="empty-feed" id="socialEmpty">
+        <div class="ico">📭</div>
+        <p>Nessun appunto condiviso ancora.<br>Tocca il "+" per pubblicare il primo post.</p>
+      </div>
+    </section>
+
+    <!-- PROMEMORIA -->
+    <section id="sec-rem" class="section hidden">
+      <h2>Scadenze della classe</h2>
+      <div id="remList"></div>
+      <div id="remEmpty" class="empty-feed hidden">
+        <div class="ico">🗓️</div>
+        <p>Nessun promemoria al momento.<br>Tocca il "+" per aggiungerne uno.</p>
+      </div>
+    </section>
+
+    <!-- IA -->
+    <section id="sec-ia" class="section hidden">
+      <h2>Σωκράτης</h2>
+      <div id="iaStatus" class="ia-status hidden"></div>
+      <div class="chat-box" id="chatBox">
+        <div class="msg bot">Χαῖρε! Sono Σωκράτης. Inviami una foto della pagina o scrivimi una domanda e ti preparo flashcard e quiz per ripassare.</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="ia-input hidden" id="iaInputBar">
+    <div class="section" style="padding-top:0">
+      <div id="fileTag" class="file-tag hidden">📎 foto allegata</div>
+      <div class="ia-input-row">
+        <label class="icon-btn" title="Invia foto della pagina">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.8"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>
+          <input type="file" accept="image/*" class="hidden" id="iaFileInput" onchange="handleIaFile(event)">
+        </label>
+        <input type="text" id="iaText" placeholder="Scrivi un messaggio...">
+        <button class="icon-btn send" onclick="inviaMessaggio()" title="Invia">
+          <svg viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="1.8"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <button class="fab" id="fabSocial" onclick="openPostModal()" title="Pubblica un post">+</button>
+  <button class="fab hidden" id="fabRem" onclick="openRemModal()" title="Aggiungi promemoria">+</button>
+
+  <!-- MODALE NUOVO POST -->
+  <div class="modal-overlay hidden" id="postModal" onclick="if(event.target===this)closePostModal()">
+    <div class="modal-card">
+      <h3>Nuovo post</h3>
+      <label class="photo-picker" id="photoPickerLabel">
+        <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M8 6l1.5-2h5L16 6"/></svg>
+        <span id="photoPickerText">Aggiungi una foto (opzionale)</span>
+        <input type="file" accept="image/*" id="postFileInput" class="hidden" onchange="handlePostFile(event)">
+      </label>
+      <div class="photo-preview hidden" id="photoPreview">
+        <img id="photoPreviewImg" src="">
+        <button class="rm" onclick="removePostPhoto()">✕</button>
+      </div>
+      <div class="field">
+        <label>Descrizione</label>
+        <textarea id="postText" placeholder="Scrivi qualcosa sui tuoi appunti..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost2" onclick="closePostModal()">Annulla</button>
+        <button class="btn" onclick="publishPost()">Pubblica</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE NUOVO PROMEMORIA -->
+  <div class="modal-overlay hidden" id="remModal" onclick="if(event.target===this)closeRemModal()">
+    <div class="modal-card">
+      <h3 id="remModalTitle">Nuovo promemoria</h3>
+      <div class="field"><label>Titolo</label><input type="text" id="remTitle" placeholder="Verifica di Storia"></div>
+      <div class="field"><label>Dettagli</label><input type="text" id="remSubtitle" placeholder="Capitoli 8-9"></div>
+      <div class="field"><label>Data</label><input type="date" id="remDate"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost2" onclick="closeRemModal()">Annulla</button>
+        <button class="btn" onclick="saveRemModal()">Salva</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottomnav">
+    <button class="navbtn active" id="nav-social" onclick="showSection('social')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="12" cy="10" r="3"/><path d="M6 20c1-3 3.5-4 6-4s5 1 6 4"/></svg>
+      Social
+    </button>
+    <button class="navbtn" id="nav-rem" onclick="showSection('rem')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/></svg>
+      Promemoria
+    </button>
+    <button class="navbtn" id="nav-ia" onclick="showSection('ia')">
+      <svg viewBox="0 0 24 24"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg>
+      Σωκράτης
+    </button>
+  </nav>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+/* ====== CONFIGURAZIONE SUPABASE ======
+   Sostituisci questi due valori con quelli del TUO progetto Supabase:
+   Project Settings → API → Project URL / anon public key */
+const SUPABASE_URL = "https://cecerxaobglnirszscwv.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_xcqXYwgA6NUoGieC1Q0SYw_ZOHM2do2";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* Supabase Auth usa email+password. Per far accedere gli utenti con un
+   semplice "nome utente" (come prima), lo trasformiamo in una finta email
+   interna: non serve che esista davvero, serve solo come identificativo unico. */
+const FAKE_EMAIL_DOMAIN = "@agora-class-app.com";
+function usernameToEmail(u){ return u + FAKE_EMAIL_DOMAIN; }
+
+let members = [];       // profili di tutta la classe, per l'elenco membri
+let reminders = [];
+let currentUser = null; // { id, user, name, avatar }
+let pendingAvatar = null; // foto profilo scelta durante la registrazione
+
+async function loadCurrentProfile(){
+  const { data: { user } } = await sb.auth.getUser();
+  if(!user){ currentUser = null; return; }
+  const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
+  if(error || !data){ currentUser = null; return; }
+  currentUser = { id: data.id, user: data.username, name: data.full_name, avatar: data.avatar_url };
+}
+
+async function initApp(){
+  const { data: { session } } = await sb.auth.getSession();
+  if(session){
+    await loadCurrentProfile();
+    if(currentUser) await enterApp();
+  }
+}
+initApp();
+
+async function logout(){
+  stopRealtime();
+  await sb.auth.signOut();
+  currentUser = null;
+  location.reload();
+}
+
+function switchTab(t){
+  document.getElementById('tabLogin').classList.toggle('active', t==='login');
+  document.getElementById('tabReg').classList.toggle('active', t==='reg');
+  document.getElementById('loginForm').classList.toggle('hidden', t!=='login');
+  document.getElementById('regForm').classList.toggle('hidden', t!=='reg');
+  document.getElementById('loginErr').classList.remove('show');
+  document.getElementById('regErr').classList.remove('show');
+  document.getElementById('regOk').classList.remove('show');
+}
+
+function showError(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function handleAvatarFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingAvatar = e.target.result;
+    document.getElementById('avatarPreviewImg').src = pendingAvatar;
+    document.getElementById('avatarPreview').classList.remove('hidden');
+    document.getElementById('avatarPickerLabel').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeAvatarPhoto(){
+  pendingAvatar = null;
+  document.getElementById('avatarFileInput').value = '';
+  document.getElementById('avatarPreview').classList.add('hidden');
+  document.getElementById('avatarPickerLabel').classList.remove('hidden');
+}
+
+async function tryLogin(){
+  const user = document.getElementById('loginUser').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPass').value;
+  document.getElementById('loginErr').classList.remove('show');
+
+  if(!user || !pass){
+    showError('loginErr', 'Inserisci nome utente e password.');
+    return;
+  }
+
+  const { error } = await sb.auth.signInWithPassword({
+    email: usernameToEmail(user),
+    password: pass
+  });
+  if(error){
+    showError('loginErr', 'Nome utente o password non validi.');
+    return;
+  }
+
+  await loadCurrentProfile();
+  await enterApp();
+}
+
+async function tryRegister(){
+  const name = document.getElementById('regName').value.trim();
+  const user = document.getElementById('regUser').value.trim().toLowerCase();
+  const pass = document.getElementById('regPass').value;
+  document.getElementById('regErr').classList.remove('show');
+  document.getElementById('regOk').classList.remove('show');
+
+  if(!name || !user || !pass){
+    showError('regErr', 'Compila tutti i campi.');
+    return;
+  }
+  if(pass.length < 6){
+    showError('regErr', 'La password deve avere almeno 6 caratteri.');
+    return;
+  }
+
+  const { data, error } = await sb.auth.signUp({
+    email: usernameToEmail(user),
+    password: pass
+  });
+  if(error){
+    if(error.message && error.message.toLowerCase().includes('registered')){
+      showError('regErr', 'Questo nome utente è già registrato.');
+    } else {
+      showError('regErr', 'Errore: ' + error.message);
+    }
+    return;
+  }
+
+  const { error: profileError } = await sb.from('profiles').insert({
+    id: data.user.id,
+    username: user,
+    full_name: name,
+    avatar_url: pendingAvatar
+  });
+  if(profileError){
+    showError('regErr', 'Errore nel salvataggio del profilo: ' + profileError.message);
+    return;
+  }
+
+  document.getElementById('regOk').textContent = 'Account creato! Ora puoi accedere dalla scheda "Accedi".';
+  document.getElementById('regOk').classList.add('show');
+  document.getElementById('regName').value = '';
+  document.getElementById('regUser').value = '';
+  document.getElementById('regPass').value = '';
+  removeAvatarPhoto();
+}
+
+async function enterApp(){
+  document.getElementById('auth').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('topbarUser').textContent = currentUser.name;
+  document.getElementById('topbarAvatarImg').innerHTML = avatarHtml(currentUser.name, currentUser.avatar);
+  await Promise.all([loadMembers(), loadReminders(), loadPosts()]);
+  renderMembers();
+  renderReminders();
+  renderPosts();
+  showSection('social');
+  startRealtime();
+  avviaCaricamentoGemmaInBackground();
+}
+
+// Fa partire il download/caricamento di Gemma 4 subito, senza aspettare
+// che l'utente scriva il primo messaggio, mostrando lo stato in un banner.
+function avviaCaricamentoGemmaInBackground(){
+  const badge = document.getElementById('iaStatus');
+  badge.classList.remove('hidden', 'ia-status-ok', 'ia-status-err');
+  badge.classList.add('ia-status-loading');
+  badge.textContent = 'Sveglio Σωκράτης...';
+
+  caricaGemma4((msg) => { badge.textContent = msg; })
+    .then(() => {
+      badge.classList.remove('ia-status-loading');
+      badge.classList.add('ia-status-ok');
+      badge.textContent = '✓ Σωκράτης è pronto';
+      setTimeout(() => badge.classList.add('hidden'), 2500);
+    })
+    .catch((e) => {
+      console.error('Errore caricamento Gemma 4:', e);
+      badge.classList.remove('ia-status-loading');
+      badge.classList.add('ia-status-err');
+      badge.textContent = 'Σωκράτης non disponibile qui: ' + (e.message || String(e));
+    });
+}
+
+let realtimeChannel = null;
+
+function startRealtime(){
+  if(realtimeChannel) return; // già attivo, evita doppie sottoscrizioni
+  realtimeChannel = sb.channel('agora-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, async () => {
+      await loadPosts(); renderPosts();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'comments' }, async () => {
+      await loadPosts(); renderPosts();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'reminders' }, async () => {
+      await loadReminders(); renderReminders();
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, async () => {
+      await loadMembers(); renderMembers();
+    })
+    .subscribe();
+}
+
+function stopRealtime(){
+  if(realtimeChannel){ sb.removeChannel(realtimeChannel); realtimeChannel = null; }
+}
+
+function initials(name){
+  return name.split(' ').map(w=>w[0]).join('').substring(0,2).toUpperCase();
+}
+
+function avatarHtml(name, avatar){
+  return avatar ? `<img src="${avatar}" alt="">` : initials(name);
+}
+
+function toggleMembers(){
+  document.getElementById('membersOverlay').classList.toggle('hidden');
+}
+
+async function loadMembers(){
+  const { data } = await sb.from('profiles').select('*').order('full_name');
+  members = data || [];
+}
+
+function renderMembers(){
+  const list = document.getElementById('membersList');
+  document.getElementById('membersCount').textContent = members.length;
+  list.innerHTML = '';
+  members.forEach(m => {
+    const row = document.createElement('div');
+    row.className = 'member-row';
+    row.innerHTML = `
+      <div class="avatar">${avatarHtml(m.full_name, m.avatar_url)}</div>
+      <div class="m-name">${m.full_name}</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function openProfileModal(){
+  if(!currentUser) return;
+  document.getElementById('profileAvatarPreview').innerHTML = avatarHtml(currentUser.name, currentUser.avatar);
+  document.getElementById('profileUserDisplay').value = currentUser.user;
+  document.getElementById('profilePassDisplay').value = '';
+  document.getElementById('profileErr').classList.remove('show');
+  document.getElementById('profileOk').classList.remove('show');
+  document.getElementById('profileModal').classList.remove('hidden');
+}
+
+function closeProfileModal(){
+  document.getElementById('profileModal').classList.add('hidden');
+}
+
+async function saveProfileChanges(){
+  if(!currentUser) return;
+  const newPass = document.getElementById('profilePassDisplay').value;
+  document.getElementById('profileErr').classList.remove('show');
+  document.getElementById('profileOk').classList.remove('show');
+
+  if(!newPass){
+    showError('profileErr', 'Scrivi una nuova password, oppure chiudi senza salvare.');
+    return;
+  }
+  if(newPass.length < 6){
+    showError('profileErr', 'La password deve avere almeno 6 caratteri.');
+    return;
+  }
+
+  const { error } = await sb.auth.updateUser({ password: newPass });
+  if(error){
+    showError('profileErr', 'Errore: ' + error.message);
+    return;
+  }
+
+  document.getElementById('profilePassDisplay').value = '';
+  const okEl = document.getElementById('profileOk');
+  okEl.textContent = 'Password aggiornata!';
+  okEl.classList.add('show');
+}
+
+async function handleProfileAvatarFile(event){
+  const file = event.target.files[0];
+  if(!file || !currentUser) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const newAvatar = e.target.result;
+    const { error } = await sb.from('profiles').update({ avatar_url: newAvatar }).eq('id', currentUser.id);
+    if(error){ alert('Errore nel salvataggio della foto: ' + error.message); return; }
+    currentUser.avatar = newAvatar;
+    document.getElementById('profileAvatarPreview').innerHTML = avatarHtml(currentUser.name, newAvatar);
+    document.getElementById('topbarAvatarImg').innerHTML = avatarHtml(currentUser.name, newAvatar);
+    await loadMembers();
+    renderMembers();
+  };
+  reader.readAsDataURL(file);
+}
+
+function showSection(name){
+  ['social','rem','ia'].forEach(s=>{
+    document.getElementById('sec-'+s).classList.toggle('hidden', s!==name);
+    document.getElementById('nav-'+s).classList.toggle('active', s===name);
+  });
+  document.getElementById('iaInputBar').classList.toggle('hidden', name!=='ia');
+  document.getElementById('fabSocial').classList.toggle('hidden', name!=='social');
+  document.getElementById('fabRem').classList.toggle('hidden', name!=='rem');
+}
+
+/* -------- Promemoria (chiunque sia collegato può aggiungere/modificare/eliminare) -------- */
+const MESI = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
+let editingRemIndex = null;
+
+async function loadReminders(){
+  const { data } = await sb.from('reminders').select('*').order('due_date');
+  reminders = (data || []).map(r => {
+    const [y, m, d] = r.due_date.split('-');
+    return { id: r.id, title: r.title, subtitle: r.subtitle, isoDate: r.due_date, day: d, month: MESI[parseInt(m,10)-1] || '---' };
+  });
+}
+
+function renderReminders(){
+  const list = document.getElementById('remList');
+  const empty = document.getElementById('remEmpty');
+  list.innerHTML = '';
+
+  if(reminders.length === 0){
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  reminders.forEach((r, i) => {
+    const div = document.createElement('div');
+    div.className = 'rem-item';
+    div.innerHTML = `
+      <div class="rem-date"><span class="d">${r.day}</span><span class="m">${r.month}</span></div>
+      <div class="rem-info"><div class="t">${r.title}</div><div class="s">${r.subtitle}</div></div>
+      <div class="rem-actions">
+        <button onclick="openRemModal(${i})" title="Modifica">✎</button>
+        <button onclick="deleteReminder(${i})" title="Elimina">✕</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function openRemModal(index){
+  editingRemIndex = (typeof index === 'number') ? index : null;
+  const title = document.getElementById('remModalTitle');
+  const t = document.getElementById('remTitle');
+  const s = document.getElementById('remSubtitle');
+  const d = document.getElementById('remDate');
+
+  if(editingRemIndex !== null){
+    const r = reminders[editingRemIndex];
+    title.textContent = 'Modifica promemoria';
+    t.value = r.title;
+    s.value = r.subtitle;
+    d.value = r.isoDate || '';
+  } else {
+    title.textContent = 'Nuovo promemoria';
+    t.value = ''; s.value = ''; d.value = '';
+  }
+  document.getElementById('remModal').classList.remove('hidden');
+}
+
+function closeRemModal(){
+  document.getElementById('remModal').classList.add('hidden');
+  editingRemIndex = null;
+}
+
+async function saveRemModal(){
+  const title = document.getElementById('remTitle').value.trim();
+  const subtitle = document.getElementById('remSubtitle').value.trim();
+  const isoDate = document.getElementById('remDate').value;
+  if(!title || !isoDate) return;
+
+  if(editingRemIndex !== null){
+    const id = reminders[editingRemIndex].id;
+    const { error } = await sb.from('reminders').update({ title, subtitle, due_date: isoDate }).eq('id', id);
+    if(error){ alert('Errore: ' + error.message); return; }
+  } else {
+    const { error } = await sb.from('reminders').insert({ title, subtitle, due_date: isoDate, created_by: currentUser.id });
+    if(error){ alert('Errore: ' + error.message); return; }
+  }
+  await loadReminders();
+  renderReminders();
+  closeRemModal();
+}
+
+async function deleteReminder(i){
+  if(!confirm('Eliminare questo promemoria?')) return;
+  const { error } = await sb.from('reminders').delete().eq('id', reminders[i].id);
+  if(error){ alert('Errore: ' + error.message); return; }
+  await loadReminders();
+  renderReminders();
+}
+
+/* -------- Post Social (qualsiasi utente collegato può pubblicare) -------- */
+let posts = [];
+let pendingPostImage = null;
+
+async function loadPosts(){
+  const { data, error } = await sb
+    .from('posts')
+    .select('*, author:profiles(username,full_name,avatar_url), comments(*, author:profiles(full_name))')
+    .order('created_at', { ascending: false });
+  if(error){ console.error(error); posts = []; return; }
+  posts = (data || []).map(p => ({
+    id: p.id,
+    authorId: p.author_id,
+    name: p.author ? p.author.full_name : '???',
+    avatar: p.author ? p.author.avatar_url : null,
+    text: p.text_content,
+    image: p.image_url,
+    comments: (p.comments || [])
+      .map(c => ({ id: c.id, name: c.author ? c.author.full_name : '???', text: c.text_content }))
+      .sort((a,b) => a.id - b.id)
+  }));
+}
+
+function openPostModal(){
+  if(!currentUser) return;
+  document.getElementById('postText').value = '';
+  removePostPhoto();
+  document.getElementById('postModal').classList.remove('hidden');
+}
+
+function closePostModal(){
+  document.getElementById('postModal').classList.add('hidden');
+}
+
+function handlePostFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingPostImage = e.target.result;
+    document.getElementById('photoPreviewImg').src = pendingPostImage;
+    document.getElementById('photoPreview').classList.remove('hidden');
+    document.getElementById('photoPickerLabel').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePostPhoto(){
+  pendingPostImage = null;
+  document.getElementById('postFileInput').value = '';
+  document.getElementById('photoPreview').classList.add('hidden');
+  document.getElementById('photoPickerLabel').classList.remove('hidden');
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+async function publishPost(){
+  if(!currentUser) return;
+  const text = document.getElementById('postText').value.trim();
+  if(!text && !pendingPostImage) return;
+
+  const { error } = await sb.from('posts').insert({
+    author_id: currentUser.id,
+    text_content: text,
+    image_url: pendingPostImage
+  });
+  if(error){ alert('Errore nella pubblicazione: ' + error.message); return; }
+  await loadPosts();
+  renderPosts();
+  closePostModal();
+}
+
+function renderPosts(){
+  const list = document.getElementById('postsList');
+  const empty = document.getElementById('socialEmpty');
+  list.innerHTML = '';
+
+  if(posts.length === 0){
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  posts.forEach((p, i) => {
+    if(!Array.isArray(p.comments)) p.comments = [];
+    const isAuthor = currentUser && p.authorId === currentUser.id;
+    const commentsHtml = p.comments.map(c => `
+      <div class="comment"><b>${escapeHtml(c.name)}</b> ${escapeHtml(c.text)}</div>
+    `).join('');
+
+    const div = document.createElement('div');
+    div.className = 'post';
+    div.innerHTML = `
+      <div class="post-head">
+        <div class="avatar">${avatarHtml(p.name, p.avatar)}</div>
+        <div><div class="name">${escapeHtml(p.name)}</div></div>
+        ${isAuthor ? `<button class="post-del" onclick="deletePost(${i})" title="Elimina post">✕</button>` : ''}
+      </div>
+      ${p.image ? `<div class="post-img" style="background:none;padding:0"><img src="${p.image}" style="width:100%;display:block;object-fit:cover;aspect-ratio:4/3"></div>` : ''}
+      ${p.text ? `<div class="post-body"><p>${escapeHtml(p.text)}</p></div>` : ''}
+      ${p.comments.length ? `<div class="comments">${commentsHtml}</div>` : ''}
+      <div class="reply-row">
+        <input type="text" id="replyInput-${i}" placeholder="Scrivi una risposta..." onkeypress="if(event.key==='Enter')addComment(${i})">
+        <button onclick="addComment(${i})">Rispondi</button>
+      </div>
+    `;
+    list.appendChild(div);
+  });
+}
+
+async function addComment(i){
+  if(!currentUser) return;
+  const input = document.getElementById('replyInput-' + i);
+  const text = input.value.trim();
+  if(!text) return;
+  const { error } = await sb.from('comments').insert({
+    post_id: posts[i].id,
+    author_id: currentUser.id,
+    text_content: text
+  });
+  if(error){ alert('Errore: ' + error.message); return; }
+  await loadPosts();
+  renderPosts();
+}
+
+async function deletePost(i){
+  if(!currentUser || posts[i].authorId !== currentUser.id) return;
+  if(!confirm('Eliminare questo post?')) return;
+  const { error } = await sb.from('posts').delete().eq('id', posts[i].id);
+  if(error){ alert('Errore: ' + error.message); return; }
+  await loadPosts();
+  renderPosts();
+}
+
+/* -------- IA (Gemma 4, offline, direttamente nel browser) -------- */
+// Su telefono usiamo E2B (~2GB, più leggero): i telefoni hanno molta meno
+// memoria GPU disponibile di un computer, ed E4B (~3GB) rischia di non
+// caricarsi affatto. Su computer usiamo E4B, più preciso.
+// Il modello NON va messo nel repository GitHub: è troppo grande, il
+// browser lo scarica direttamente da Hugging Face e lo tiene in cache.
+function isDispositivoMobile(){
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+const MODEL_PATH = isDispositivoMobile()
+  ? "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task"
+  : "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it-web.task";
+
+let llmInference = null;   // istanza del modello, caricata una sola volta
+let modelLoading = null;   // promise di caricamento, per non caricarlo 2 volte
+let pendingIaImage = null; // foto scelta, in formato base64 (data URL)
+
+function handleIaFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingIaImage = e.target.result;
+    const tag = document.getElementById('fileTag');
+    tag.textContent = "📎 " + file.name;
+    tag.classList.remove('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+// Scarica il file del modello mostrando l'avanzamento reale (il file pesa
+// circa 2 GB, quindi senza questa barra sembrerebbe bloccato).
+async function scaricaModelloConProgresso(url, onProgress){
+  const res = await fetch(url);
+  if(!res.ok || !res.body){
+    throw new Error("Impossibile scaricare il modello (codice " + res.status + ")");
+  }
+  const totale = parseInt(res.headers.get('Content-Length') || '0', 10);
+  const reader = res.body.getReader();
+  const pezzi = [];
+  let ricevuti = 0;
+
+  while(true){
+    const { done, value } = await reader.read();
+    if(done) break;
+    pezzi.push(value);
+    ricevuti += value.length;
+    const mb = (ricevuti / 1e6).toFixed(0);
+    if(totale){
+      const pct = Math.round((ricevuti / totale) * 100);
+      onProgress?.(`Scarico Gemma 4 E4B: ${pct}% (${mb} MB)`);
+    } else {
+      onProgress?.(`Scarico Gemma 4 E4B: ${mb} MB scaricati...`);
+    }
+  }
+
+  const buffer = new Uint8Array(ricevuti);
+  let offset = 0;
+  for(const pezzo of pezzi){ buffer.set(pezzo, offset); offset += pezzo.length; }
+  return buffer;
+}
+
+// Carica Gemma 4 E4B nel browser (una volta sola, poi resta in memoria).
+// Ritorna l'istanza pronta all'uso, oppure lancia un errore se qualcosa
+// va storto (browser senza WebGPU, file del modello non trovato, ecc).
+async function caricaGemma4(onProgress){
+  if(llmInference) return llmInference;
+  if(modelLoading) return modelLoading;
+
+  modelLoading = (async () => {
+    if(!navigator.gpu){
+      throw new Error("Questo browser non supporta WebGPU: usa Chrome o Edge aggiornati.");
+    }
+    onProgress?.("Preparo il motore di Gemma 4...");
+    const { FilesetResolver, LlmInference } = await import(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/genai_bundle.mjs"
+    );
+    const genai = await FilesetResolver.forGenAiTasks(
+      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
+    );
+    const modelBuffer = await scaricaModelloConProgresso(MODEL_PATH, onProgress);
+    onProgress?.("Avvio il modello (qualche secondo)...");
+    const istanza = await LlmInference.createFromOptions(genai, {
+      baseOptions: { modelAssetBuffer: modelBuffer },
+      maxTokens: 2048,
+      topK: 15,
+      temperature: 0.35,
+      maxNumImages: 1 // permette di analizzare 1 foto per messaggio
+    });
+    llmInference = istanza;
+    return istanza;
+  })();
+
+  return modelLoading;
+}
+
+const PROMPT_SISTEMA = `Sei "Σωκράτης", l'assistente IA di "αγορά", un'app di studio per una classe di liceo classico.
+Ricevi il testo e/o la foto di una pagina di appunti scritta da uno studente, oppure una sua domanda/richiesta specifica.
+
+REGOLE IMPORTANTI:
+1. Leggi ATTENTAMENTE cosa chiede lo studente e adatta il contenuto ESATTAMENTE a quell'argomento (mai argomenti diversi da quello richiesto).
+2. Se lo studente chiede SOLO flashcard, lascia "quiz" come array vuoto []. Se chiede SOLO un quiz, lascia "flashcards" come array vuoto [].
+3. Se lo studente chiede un quiz "vero o falso", ogni domanda deve avere ESATTAMENTE 2 opzioni: ["Vero","Falso"] (mai 3, mai ripetute).
+4. Se chiede un quiz a scelta multipla senza specificare, usa 3-4 opzioni tutte DIVERSE tra loro.
+5. NON ripetere MAI la stessa domanda, la stessa flashcard o la stessa opzione due volte nella stessa risposta.
+6. Scrivi in italiano corretto, senza errori di battitura, senza lettere o parole mancanti. Rileggi mentalmente la frase prima di scriverla.
+7. Il numero di flashcard/domande deve corrispondere a quanto chiesto dallo studente (se non specifica un numero, va bene 3-4).
+
+Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo, con ESATTAMENTE questa struttura:
+{"risposta":"una frase breve che introduce il ripasso","flashcards":[{"fronte":"domanda","retro":"risposta"}],"quiz":[{"domanda":"domanda","opzioni":["opzione 1","opzione 2"],"corretta":0}]}
+"corretta" è l'indice (0, 1, 2...) dell'opzione giusta.`;
+
+// Chiama Gemma 4 E4B in locale. Ritorna { risposta, flashcards, quiz }
+// oppure { errore: "..." } se qualcosa va storto (in quel caso si userà la demo,
+// ma mostrando SEMPRE il motivo reale, mai una risposta finta senza avviso).
+async function inviaAGemma4(fileBase64, testo, onProgress){
+  try{
+    const modello = await caricaGemma4(onProgress);
+    onProgress?.("Σωκράτης sta pensando...");
+
+    const parti = [
+      '<start_of_turn>user\n' + PROMPT_SISTEMA + '\n\n' + (testo || "Analizza la foto allegata."),
+    ];
+
+    if(fileBase64){
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = fileBase64;
+      });
+      parti.push({ imageSource: img });
+    }
+    parti.push('<end_of_turn>\n<start_of_turn>model\n');
+
+    const rispostaGrezza = await modello.generateResponse(parti);
+    return estraiJSON(rispostaGrezza);
+  }catch(e){
+    console.error("Errore Σωκράτης:", e);
+    return { errore: e.message || String(e) };
+  }
+}
+
+// Estrae il JSON dalla risposta del modello in modo robusto: toglie eventuali
+// blocchi ```json, e cerca le graffe bilanciate invece di una regex ingenua
+// (che con testo extra attorno o graffe annidate potrebbe tagliare male).
+function estraiJSON(testoGrezzo){
+  let pulito = testoGrezzo.trim();
+  pulito = pulito.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
+
+  const inizio = pulito.indexOf('{');
+  if(inizio === -1) return { errore: "Il modello non ha restituito un JSON valido." };
+
+  let profondita = 0, fine = -1;
+  for(let i = inizio; i < pulito.length; i++){
+    if(pulito[i] === '{') profondita++;
+    else if(pulito[i] === '}'){
+      profondita--;
+      if(profondita === 0){ fine = i; break; }
+    }
+  }
+  if(fine === -1) return { errore: "La risposta del modello sembra troncata (JSON incompleto)." };
+
+  try{
+    const risultatoParsato = JSON.parse(pulito.slice(inizio, fine + 1));
+    // Rete di sicurezza: rimuove eventuali flashcard duplicate (stessa domanda),
+    // nel caso il modello si ripeta nonostante le istruzioni.
+    if(Array.isArray(risultatoParsato.flashcards)){
+      const viste = new Set();
+      risultatoParsato.flashcards = risultatoParsato.flashcards.filter(f => {
+        const chiave = (f.fronte || '').trim().toLowerCase();
+        if(viste.has(chiave)) return false;
+        viste.add(chiave);
+        return true;
+      });
+    }
+
+    // Rete di sicurezza per i quiz: scarta domande con opzioni duplicate
+    // (es. "Sì"/"Sì") o con un indice "corretta" fuori range, invece di
+    // mostrare una domanda rotta o con la risposta giusta segnata sbagliata.
+    if(Array.isArray(risultatoParsato.quiz)){
+      risultatoParsato.quiz = risultatoParsato.quiz.filter(q => {
+        if(!Array.isArray(q.opzioni) || q.opzioni.length < 2) return false;
+        if(typeof q.corretta !== 'number' || q.corretta < 0 || q.corretta >= q.opzioni.length) return false;
+        const opzioniViste = new Set();
+        for(const op of q.opzioni){
+          const chiave = (op || '').trim().toLowerCase();
+          if(opzioniViste.has(chiave)) return false; // opzioni duplicate, domanda scartata
+          opzioniViste.add(chiave);
+        }
+        return true;
+      });
+    }
+
+    return risultatoParsato;
+  }catch(e){
+    return { errore: "JSON non valido nella risposta del modello: " + e.message };
+  }
+}
+
+// Dati di esempio mostrati SOLO come ultima spiaggia se Σωκράτης non riesce
+// a caricarsi o rispondere. Vengono sempre mostrati con un avviso ben visibile,
+// mai al posto di una vera risposta senza dirlo.
+const DEMO_RESULT = {
+  risposta: "Contenuto di esempio (dimostrativo, non generato da Σωκράτης ora)",
+  flashcards: [
+    { fronte: "Domanda di esempio 1", retro: "Risposta di esempio 1" },
+    { fronte: "Domanda di esempio 2", retro: "Risposta di esempio 2" }
+  ],
+  quiz: [
+    {
+      domanda: "Domanda di esempio a risposta multipla",
+      opzioni: ["Opzione A", "Opzione B", "Opzione C"],
+      corretta: 0
+    }
+  ]
+};
+
+async function inviaMessaggio(){
+  const input = document.getElementById('iaText');
+  const testo = input.value.trim();
+  if(!testo && !pendingIaImage) return;
+  const chat = document.getElementById('chatBox');
+
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg user';
+  userMsg.innerHTML = `<span class="msg-label">Tu</span>${escapeHtml(testo || 'Ho inviato una foto della pagina')}`;
+  chat.appendChild(userMsg);
+
+  input.value = '';
+  document.getElementById('fileTag').classList.add('hidden');
+
+  const typing = document.createElement('div');
+  typing.className = 'msg bot typing';
+  typing.textContent = 'Sto elaborando i contenuti...';
+  chat.appendChild(typing);
+  chat.scrollIntoView({behavior:'smooth', block:'end'});
+
+  const imageUsed = pendingIaImage;
+  pendingIaImage = null;
+
+  const aggiornaStato = (msg) => { typing.textContent = msg; };
+  const esitoGrezzo = await inviaAGemma4(imageUsed, testo, aggiornaStato);
+
+  typing.remove();
+
+  let risultato;
+  if(esitoGrezzo && !esitoGrezzo.errore){
+    // Vera risposta di Σωκράτης
+    risultato = esitoGrezzo;
+  } else {
+    // Qualcosa è andato storto: mostriamo un avviso ROSSO, ben visibile,
+    // MAI una risposta finta senza dirlo (fondamentale davanti alla classe).
+    const motivo = esitoGrezzo?.errore || "motivo sconosciuto";
+    console.error("Σωκράτης non ha risposto correttamente:", motivo);
+
+    const avviso = document.createElement('div');
+    avviso.className = 'msg bot ia-error';
+    avviso.innerHTML = `⚠️ <b>Σωκράτης non è riuscito a rispondere.</b><br>Motivo tecnico: ${escapeHtml(motivo)}<br><span style="opacity:.8">Quello che segue è un ESEMPIO dimostrativo, non una vera risposta.</span>`;
+    chat.appendChild(avviso);
+
+    risultato = DEMO_RESULT;
+  }
+  const botMsg = document.createElement('div');
+  botMsg.className = 'msg bot';
+  botMsg.innerHTML = `<span class="msg-label">Σωκράτης</span>${escapeHtml(risultato.risposta || "Ecco cosa ho preparato per te:")}`;
+  chat.appendChild(botMsg);
+  generaRisultati(chat, risultato);
+}
+
+function generaRisultati(chat, data){
+  const flashHtml = (data.flashcards || []).map(f => `
+    <div class="flashcard" onclick="this.classList.toggle('flipped')">
+      <div class="flash-inner">
+        <div class="flash-face flash-front">${escapeHtml(f.fronte)}</div>
+        <div class="flash-face flash-back">${escapeHtml(f.retro)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  const quizHtml = (data.quiz || []).map(q => `
+    <div class="quiz-q">
+      <p>${escapeHtml(q.domanda)}</p>
+      ${q.opzioni.map((op, idx) => `
+        <button class="quiz-opt" onclick="rispondi(this, ${idx === q.corretta})">${escapeHtml(op)}</button>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const block = document.createElement('div');
+  block.className = 'result-block';
+  if(!flashHtml && !quizHtml){
+    block.innerHTML = `<p class="ia-warn">⚠️ Il contenuto generato non era valido ed è stato scartato. Prova a riformulare la richiesta.</p>`;
+  } else {
+    block.innerHTML = `
+      ${flashHtml ? `<h3>Flashcard</h3><div class="flash-row">${flashHtml}</div>` : ''}
+      ${quizHtml ? `<h3>Quiz veloce</h3>${quizHtml}` : ''}
+    `;
+  }
+  chat.appendChild(block);
+  chat.scrollIntoView({behavior:'smooth', block:'end'});
+}
+
+function rispondi(btn, corretta){
+  const opts = btn.parentElement.querySelectorAll('.quiz-opt');
+  opts.forEach(o=>o.disabled=true);
+  if(corretta){
+    btn.classList.add('correct');
+  } else {
+    btn.classList.add('wrong');
+    const idx = Array.from(opts).indexOf(btn);
+    opts.forEach((o,i)=>{ if(o.onclick.toString().includes('true') && i!==idx) o.classList.add('correct'); });
+  }
+}
+
+document.getElementById('iaText').addEventListener('keypress', e=>{
+  if(e.key === 'Enter') inviaMessaggio();
+});
+</script>
+</body>
+</html>
