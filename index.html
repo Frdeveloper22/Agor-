@@ -1000,41 +1000,12 @@ function handleIaFile(event){
   reader.readAsDataURL(file);
 }
 
-// Scarica il file del modello mostrando l'avanzamento reale (il file pesa
-// circa 2 GB, quindi senza questa barra sembrerebbe bloccato).
-async function scaricaModelloConProgresso(url, onProgress){
-  const res = await fetch(url);
-  if(!res.ok || !res.body){
-    throw new Error("Impossibile scaricare il modello (codice " + res.status + ")");
-  }
-  const totale = parseInt(res.headers.get('Content-Length') || '0', 10);
-  const reader = res.body.getReader();
-  const pezzi = [];
-  let ricevuti = 0;
-
-  while(true){
-    const { done, value } = await reader.read();
-    if(done) break;
-    pezzi.push(value);
-    ricevuti += value.length;
-    const mb = (ricevuti / 1e6).toFixed(0);
-    if(totale){
-      const pct = Math.round((ricevuti / totale) * 100);
-      onProgress?.(`Scarico Gemma 4 E4B: ${pct}% (${mb} MB)`);
-    } else {
-      onProgress?.(`Scarico Gemma 4 E4B: ${mb} MB scaricati...`);
-    }
-  }
-
-  const buffer = new Uint8Array(ricevuti);
-  let offset = 0;
-  for(const pezzo of pezzi){ buffer.set(pezzo, offset); offset += pezzo.length; }
-  return buffer;
-}
-
-// Carica Gemma 4 E4B nel browser (una volta sola, poi resta in memoria).
+// Carica Gemma 4 nel browser (una volta sola, poi resta in memoria).
 // Ritorna l'istanza pronta all'uso, oppure lancia un errore se qualcosa
 // va storto (browser senza WebGPU, file del modello non trovato, ecc).
+// NOTA: usiamo modelAssetPath (il metodo ufficiale documentato da Google)
+// invece di scaricare il file a mano: è meno soggetto a bug, anche se
+// significa non poter mostrare una percentuale di avanzamento precisa.
 async function caricaGemma4(onProgress){
   if(llmInference) return llmInference;
   if(modelLoading) return modelLoading;
@@ -1050,14 +1021,18 @@ async function caricaGemma4(onProgress){
     const genai = await FilesetResolver.forGenAiTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
     );
-    const modelBuffer = await scaricaModelloConProgresso(MODEL_PATH, onProgress);
-    onProgress?.("Avvio il modello (qualche secondo)...");
+    onProgress?.("Scarico e avvio il modello (il file è grande, può volerci un po')...");
     const istanza = await LlmInference.createFromOptions(genai, {
-      baseOptions: { modelAssetBuffer: modelBuffer },
+      baseOptions: { modelAssetPath: MODEL_PATH },
       maxTokens: 2048,
       topK: 15,
       temperature: 0.35,
       maxNumImages: 1 // permette di analizzare 1 foto per messaggio
+    }).catch((e) => {
+      console.error("Dettaglio completo errore createFromOptions:", e);
+      const nomeModello = MODEL_PATH.includes('E4B') ? 'E4B' : 'E2B';
+      const dettaglio = `[modello: ${nomeModello}] [tipo: ${e.name || '?'}] ${e.message || e}`;
+      throw new Error(dettaglio);
     });
     llmInference = istanza;
     return istanza;
