@@ -1109,16 +1109,15 @@ function generaRisultati(chat, data){
     </div>
   `).join('');
 
+  if(!flashHtml && !quizHtml){
+    return; // niente da mostrare (es. un semplice saluto): non è un errore
+  }
   const block = document.createElement('div');
   block.className = 'result-block';
-  if(!flashHtml && !quizHtml){
-    block.innerHTML = `<p class="ia-warn">⚠️ Il contenuto generato non era valido ed è stato scartato. Prova a riformulare la richiesta.</p>`;
-  } else {
-    block.innerHTML = `
-      ${flashHtml ? `<h3>Flashcard</h3><div class="flash-row">${flashHtml}</div>` : ''}
-      ${quizHtml ? `<h3>Quiz veloce</h3>${quizHtml}` : ''}
-    `;
-  }
+  block.innerHTML = `
+    ${flashHtml ? `<h3>Flashcard</h3><div class="flash-row">${flashHtml}</div>` : ''}
+    ${quizHtml ? `<h3>Quiz veloce</h3>${quizHtml}` : ''}
+  `;
   chat.appendChild(block);
   chat.scrollIntoView({behavior:'smooth', block:'end'});
 }
