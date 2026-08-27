@@ -594,30 +594,8 @@ async function enterApp(){
   renderPosts();
   showSection('social');
   startRealtime();
-  avviaCaricamentoGemmaInBackground();
-}
-
-// Fa partire il download/caricamento di Gemma 4 subito, senza aspettare
-// che l'utente scriva il primo messaggio, mostrando lo stato in un banner.
-function avviaCaricamentoGemmaInBackground(){
-  const badge = document.getElementById('iaStatus');
-  badge.classList.remove('hidden', 'ia-status-ok', 'ia-status-err');
-  badge.classList.add('ia-status-loading');
-  badge.textContent = 'Sveglio Σωκράτης...';
-
-  caricaGemma4((msg) => { badge.textContent = msg; })
-    .then(() => {
-      badge.classList.remove('ia-status-loading');
-      badge.classList.add('ia-status-ok');
-      badge.textContent = '✓ Σωκράτης è pronto';
-      setTimeout(() => badge.classList.add('hidden'), 2500);
-    })
-    .catch((e) => {
-      console.error('Errore caricamento Gemma 4:', e);
-      badge.classList.remove('ia-status-loading');
-      badge.classList.add('ia-status-err');
-      badge.textContent = 'Σωκράτης non disponibile qui: ' + (e.message || String(e));
-    });
+  // Nota: Σωκράτης ora gira nel cloud (Supabase + Gemini), quindi non serve
+  // più scaricare/caricare nulla all'avvio: è pronto all'uso da subito.
 }
 
 let realtimeChannel = null;
@@ -970,21 +948,11 @@ async function deletePost(i){
   renderPosts();
 }
 
-/* -------- IA (Gemma 4, offline, direttamente nel browser) -------- */
-// Su telefono usiamo E2B (~2GB, più leggero): i telefoni hanno molta meno
-// memoria GPU disponibile di un computer, ed E4B (~3GB) rischia di non
-// caricarsi affatto. Su computer usiamo E4B, più preciso.
-// Il modello NON va messo nel repository GitHub: è troppo grande, il
-// browser lo scarica direttamente da Hugging Face e lo tiene in cache.
-function isDispositivoMobile(){
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-const MODEL_PATH = isDispositivoMobile()
-  ? "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-web.task"
-  : "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it-web.task";
-
-let llmInference = null;   // istanza del modello, caricata una sola volta
-let modelLoading = null;   // promise di caricamento, per non caricarlo 2 volte
+/* -------- IA (Σωκράτης, tramite Supabase Edge Function + Gemini) -------- */
+// La versione "on-device" (Gemma 4 nel browser) è stata messa in pausa per
+// un bug attuale non risolto nella libreria di Google (vedi commit precedenti).
+// Ora Σωκράτης gira nel cloud tramite una funzione Supabase che tiene al
+// sicuro la chiave API, così nessuno può vederla o rubarla dal sito.
 let pendingIaImage = null; // foto scelta, in formato base64 (data URL)
 
 function handleIaFile(event){
@@ -1000,121 +968,28 @@ function handleIaFile(event){
   reader.readAsDataURL(file);
 }
 
-// Carica Gemma 4 nel browser (una volta sola, poi resta in memoria).
-// Ritorna l'istanza pronta all'uso, oppure lancia un errore se qualcosa
-// va storto (browser senza WebGPU, file del modello non trovato, ecc).
-// NOTA: usiamo modelAssetPath (il metodo ufficiale documentato da Google)
-// invece di scaricare il file a mano: è meno soggetto a bug, anche se
-// significa non poter mostrare una percentuale di avanzamento precisa.
-async function caricaGemma4(onProgress){
-  if(llmInference) return llmInference;
-  if(modelLoading) return modelLoading;
-
-  modelLoading = (async () => {
-    if(!navigator.gpu){
-      throw new Error("Questo browser non supporta WebGPU: usa Chrome o Edge aggiornati.");
-    }
-    onProgress?.("Preparo il motore di Gemma 4...");
-    const { FilesetResolver, LlmInference } = await import(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/genai_bundle.mjs"
-    );
-    const genai = await FilesetResolver.forGenAiTasks(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai/wasm"
-    );
-    onProgress?.("Scarico e avvio il modello (il file è grande, può volerci un po')...");
-    const istanza = await LlmInference.createFromOptions(genai, {
-      baseOptions: { modelAssetPath: MODEL_PATH },
-      maxTokens: 2048,
-      topK: 15,
-      temperature: 0.35,
-      maxNumImages: 1 // permette di analizzare 1 foto per messaggio
-    }).catch((e) => {
-      console.error("Dettaglio completo errore createFromOptions:", e);
-      const nomeModello = MODEL_PATH.includes('E4B') ? 'E4B' : 'E2B';
-      const dettaglio = `[modello: ${nomeModello}] [tipo: ${e.name || '?'}] ${e.message || e}`;
-      throw new Error(dettaglio);
-    });
-    llmInference = istanza;
-    return istanza;
-  })();
-
-  return modelLoading;
-}
-
-const PROMPT_SISTEMA = `Sei "Σωκράτης", l'assistente IA di "αγορά", un'app di studio per una classe di liceo classico.
-Ricevi il testo e/o la foto di una pagina di appunti scritta da uno studente, oppure una sua domanda/richiesta specifica.
-
-REGOLE IMPORTANTI:
-1. Leggi ATTENTAMENTE cosa chiede lo studente e adatta il contenuto ESATTAMENTE a quell'argomento (mai argomenti diversi da quello richiesto).
-2. Se lo studente chiede SOLO flashcard, lascia "quiz" come array vuoto []. Se chiede SOLO un quiz, lascia "flashcards" come array vuoto [].
-3. Se lo studente chiede un quiz "vero o falso", ogni domanda deve avere ESATTAMENTE 2 opzioni: ["Vero","Falso"] (mai 3, mai ripetute).
-4. Se chiede un quiz a scelta multipla senza specificare, usa 3-4 opzioni tutte DIVERSE tra loro.
-5. NON ripetere MAI la stessa domanda, la stessa flashcard o la stessa opzione due volte nella stessa risposta.
-6. Scrivi in italiano corretto, senza errori di battitura, senza lettere o parole mancanti. Rileggi mentalmente la frase prima di scriverla.
-7. Il numero di flashcard/domande deve corrispondere a quanto chiesto dallo studente (se non specifica un numero, va bene 3-4).
-
-Rispondi SOLO con un oggetto JSON valido, senza testo prima o dopo, con ESATTAMENTE questa struttura:
-{"risposta":"una frase breve che introduce il ripasso","flashcards":[{"fronte":"domanda","retro":"risposta"}],"quiz":[{"domanda":"domanda","opzioni":["opzione 1","opzione 2"],"corretta":0}]}
-"corretta" è l'indice (0, 1, 2...) dell'opzione giusta.`;
-
-// Chiama Gemma 4 E4B in locale. Ritorna { risposta, flashcards, quiz }
-// oppure { errore: "..." } se qualcosa va storto (in quel caso si userà la demo,
-// ma mostrando SEMPRE il motivo reale, mai una risposta finta senza avviso).
+// Chiama Σωκράτης tramite la Supabase Edge Function "sokrates", che a sua
+// volta interroga Gemini (Google) tenendo la chiave API segreta lato server.
+// Ritorna { risposta, flashcards, quiz } oppure { errore: "..." }.
 async function inviaAGemma4(fileBase64, testo, onProgress){
   try{
-    const modello = await caricaGemma4(onProgress);
     onProgress?.("Σωκράτης sta pensando...");
 
-    const parti = [
-      '<start_of_turn>user\n' + PROMPT_SISTEMA + '\n\n' + (testo || "Analizza la foto allegata."),
-    ];
+    const { data, error } = await sb.functions.invoke('sokrates', {
+      body: { testo: testo || null, fotoBase64: fileBase64 || null }
+    });
 
-    if(fileBase64){
-      const img = new Image();
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = fileBase64;
-      });
-      parti.push({ imageSource: img });
+    if(error){
+      return { errore: "Errore di comunicazione con Σωκράτης: " + error.message };
     }
-    parti.push('<end_of_turn>\n<start_of_turn>model\n');
-
-    const rispostaGrezza = await modello.generateResponse(parti);
-    return estraiJSON(rispostaGrezza);
-  }catch(e){
-    console.error("Errore Σωκράτης:", e);
-    return { errore: e.message || String(e) };
-  }
-}
-
-// Estrae il JSON dalla risposta del modello in modo robusto: toglie eventuali
-// blocchi ```json, e cerca le graffe bilanciate invece di una regex ingenua
-// (che con testo extra attorno o graffe annidate potrebbe tagliare male).
-function estraiJSON(testoGrezzo){
-  let pulito = testoGrezzo.trim();
-  pulito = pulito.replace(/```json\s*/gi, '').replace(/```\s*/g, '');
-
-  const inizio = pulito.indexOf('{');
-  if(inizio === -1) return { errore: "Il modello non ha restituito un JSON valido." };
-
-  let profondita = 0, fine = -1;
-  for(let i = inizio; i < pulito.length; i++){
-    if(pulito[i] === '{') profondita++;
-    else if(pulito[i] === '}'){
-      profondita--;
-      if(profondita === 0){ fine = i; break; }
+    if(data?.errore){
+      return { errore: data.errore };
     }
-  }
-  if(fine === -1) return { errore: "La risposta del modello sembra troncata (JSON incompleto)." };
 
-  try{
-    const risultatoParsato = JSON.parse(pulito.slice(inizio, fine + 1));
-    // Rete di sicurezza: rimuove eventuali flashcard duplicate (stessa domanda),
-    // nel caso il modello si ripeta nonostante le istruzioni.
-    if(Array.isArray(risultatoParsato.flashcards)){
+    // Rete di sicurezza: rimuove eventuali flashcard duplicate (stessa domanda).
+    if(Array.isArray(data.flashcards)){
       const viste = new Set();
-      risultatoParsato.flashcards = risultatoParsato.flashcards.filter(f => {
+      data.flashcards = data.flashcards.filter(f => {
         const chiave = (f.fronte || '').trim().toLowerCase();
         if(viste.has(chiave)) return false;
         viste.add(chiave);
@@ -1123,31 +998,31 @@ function estraiJSON(testoGrezzo){
     }
 
     // Rete di sicurezza per i quiz: scarta domande con opzioni duplicate
-    // (es. "Sì"/"Sì") o con un indice "corretta" fuori range, invece di
-    // mostrare una domanda rotta o con la risposta giusta segnata sbagliata.
-    if(Array.isArray(risultatoParsato.quiz)){
-      risultatoParsato.quiz = risultatoParsato.quiz.filter(q => {
+    // o con un indice "corretta" fuori range.
+    if(Array.isArray(data.quiz)){
+      data.quiz = data.quiz.filter(q => {
         if(!Array.isArray(q.opzioni) || q.opzioni.length < 2) return false;
         if(typeof q.corretta !== 'number' || q.corretta < 0 || q.corretta >= q.opzioni.length) return false;
         const opzioniViste = new Set();
         for(const op of q.opzioni){
           const chiave = (op || '').trim().toLowerCase();
-          if(opzioniViste.has(chiave)) return false; // opzioni duplicate, domanda scartata
+          if(opzioniViste.has(chiave)) return false;
           opzioniViste.add(chiave);
         }
         return true;
       });
     }
 
-    return risultatoParsato;
+    return data;
   }catch(e){
-    return { errore: "JSON non valido nella risposta del modello: " + e.message };
+    console.error("Errore Σωκράτης:", e);
+    return { errore: e.message || String(e) };
   }
 }
 
 // Dati di esempio mostrati SOLO come ultima spiaggia se Σωκράτης non riesce
-// a caricarsi o rispondere. Vengono sempre mostrati con un avviso ben visibile,
-// mai al posto di una vera risposta senza dirlo.
+// a rispondere. Vengono sempre mostrati con un avviso ben visibile, mai al
+// posto di una vera risposta senza dirlo.
 const DEMO_RESULT = {
   risposta: "Contenuto di esempio (dimostrativo, non generato da Σωκράτης ora)",
   flashcards: [
