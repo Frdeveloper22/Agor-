@@ -975,7 +975,7 @@ async function inviaAGemma4(fileBase64, testo, onProgress){
   try{
     onProgress?.("Σωκράτης sta pensando...");
 
-    const { data, error } = await sb.functions.invoke('sokrates', {
+    const { data, error } = await sb.functions.invoke('super-action', {
       body: { testo: testo || null, fotoBase64: fileBase64 || null }
     });
 
