@@ -136,7 +136,8 @@ nav.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:
 .ia-input-row{display:flex;gap:8px;background:#fff;border:1px solid var(--line);border-radius:24px;padding:6px 6px 6px 16px;align-items:center}
 .latino-search-row{display:flex;gap:8px}
 .latino-search-row input{flex:1;padding:10px 14px;border:1px solid var(--line);border-radius:24px;font-family:'Georgia',serif;font-size:14px;background:#fff}
-.latino-search-row .btn{border-radius:24px}
+.lang-btn-row{display:flex;gap:10px;margin-top:12px}
+.lang-btn{flex:1;border-radius:24px;text-align:center}
 .ia-input-row input{flex:1;border:none;background:none;font-family:sans-serif;font-size:14px}
 .ia-input-row input:focus{outline:none}
 .icon-btn{width:38px;height:38px;border-radius:50%;border:none;background:var(--cream);color:var(--wine);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
@@ -354,21 +355,24 @@ html{scroll-behavior:smooth}
     </section>
 
     <!-- IA -->
+    <!-- Versioni: ricerca su Splash Latino o Splash Greco a seconda della lingua -->
+    <section id="sec-latino" class="section hidden">
+      <h2>Versioni</h2>
+      <p class="hint" style="margin-bottom:14px">Scrivi il titolo della versione (o le prime parole del testo), scegli la lingua, e ti apro la ricerca nel sito giusto in una nuova scheda.</p>
+      <div class="latino-search-row">
+        <input type="text" id="latinoQuery" placeholder="Es. Cincinnato dittatore" onkeypress="if(event.key==='Enter')cercaVersione('latino')">
+      </div>
+      <div class="lang-btn-row">
+        <button class="btn lang-btn" onclick="cercaVersione('greco')">📜 Greco</button>
+        <button class="btn lang-btn" onclick="cercaVersione('latino')">🏛️ Latino</button>
+      </div>
+    </section>
+
     <section id="sec-ia" class="section hidden">
       <h2>Σωκράτης</h2>
       <div id="iaStatus" class="ia-status hidden"></div>
       <div class="chat-box" id="chatBox">
         <div class="msg bot">Χαῖρε! Sono Σωκράτης. Inviami una foto della pagina o scrivimi una domanda e ti preparo flashcard e quiz per ripassare.</div>
-      </div>
-    </section>
-
-    <!-- Latino: ricerca versioni su Splash Latino -->
-    <section id="sec-latino" class="section hidden">
-      <h2>Versioni di Latino</h2>
-      <p class="hint" style="margin-bottom:14px">Scrivi il titolo della versione (o le prime parole del testo latino): ti apro la ricerca su Splash Latino in una nuova scheda.</p>
-      <div class="latino-search-row">
-        <input type="text" id="latinoQuery" placeholder="Es. Cincinnato dittatore" onkeypress="if(event.key==='Enter')cercaSuSplashLatino()">
-        <button class="btn" onclick="cercaSuSplashLatino()">Cerca</button>
       </div>
     </section>
   </main>
@@ -439,13 +443,13 @@ html{scroll-behavior:smooth}
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/></svg>
       Promemoria
     </button>
+    <button class="navbtn" id="nav-latino" onclick="showSection('latino')">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Versioni
+    </button>
     <button class="navbtn" id="nav-ia" onclick="showSection('ia')">
       <svg viewBox="0 0 24 24"><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/><circle cx="12" cy="12" r="4"/></svg>
       Σωκράτης
-    </button>
-    <button class="navbtn" id="nav-latino" onclick="showSection('latino')">
-      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-      Latino
     </button>
   </nav>
 </div>
@@ -754,10 +758,11 @@ async function handleProfileAvatarFile(event){
   reader.readAsDataURL(file);
 }
 
-function cercaSuSplashLatino(){
+function cercaVersione(lingua){
   const q = document.getElementById('latinoQuery').value.trim();
   if(!q) return;
-  const url = 'https://www.google.com/search?q=' + encodeURIComponent('site:latin.it ' + q);
+  const sito = lingua === 'greco' ? 'splash-greco.it' : 'latin.it';
+  const url = 'https://www.google.com/search?q=' + encodeURIComponent('site:' + sito + ' ' + q);
   window.open(url, '_blank');
 }
 
