@@ -788,8 +788,8 @@ function mostraSceltaLingua(){
 function eseguiRicercaVersione(){
   const q = document.getElementById('latinoQuery').value.trim();
   if(!q || !linguaVersioni) return;
-  const sito = linguaVersioni === 'greco' ? 'splash-greco.it' : 'latin.it';
-  const url = 'https://www.google.com/search?q=' + encodeURIComponent('site:' + sito + ' ' + q);
+  const query = linguaVersioni === 'greco' ? (q + ' greco') : ('site:latin.it ' + q);
+  const url = 'https://www.google.com/search?q=' + encodeURIComponent(query);
   window.open(url, '_blank');
 }
 
