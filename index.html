@@ -109,6 +109,7 @@ nav.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:
 .field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:sans-serif;font-size:14px;background:var(--cream);resize:vertical;min-height:70px}
 .field textarea:focus{outline:none;border-color:var(--wine)}
 .modal-actions{display:flex;gap:10px;margin-top:6px}
+.btn-ghost2{background:none;border:1px solid var(--line);color:#888}
 .modal-actions .btn-ghost2{flex:1;background:none;border:1px solid var(--line);color:#888}
 .modal-actions .btn{flex:1}
 
@@ -358,14 +359,18 @@ html{scroll-behavior:smooth}
     <!-- Versioni: ricerca su Splash Latino o Splash Greco a seconda della lingua -->
     <section id="sec-latino" class="section hidden">
       <h2>Versioni</h2>
-      <p class="hint" style="margin-bottom:14px">Scrivi il titolo della versione (o le prime parole del testo), scegli la lingua, e ti apro la ricerca nel sito giusto in una nuova scheda.</p>
-      <div class="latino-search-row">
-        <input type="text" id="latinoQuery" placeholder="Es. Cincinnato dittatore" onkeypress="if(event.key==='Enter')cercaVersione('latino')">
+      <p class="hint" id="latinoHint" style="margin-bottom:14px">Scegli la lingua della versione da cercare.</p>
+
+      <div class="lang-btn-row" id="langBtnRow">
+        <button class="btn lang-btn" onclick="scegliLingua('greco')">📜 Greco</button>
+        <button class="btn lang-btn" onclick="scegliLingua('latino')">🏛️ Latino</button>
       </div>
-      <div class="lang-btn-row">
-        <button class="btn lang-btn" onclick="cercaVersione('greco')">📜 Greco</button>
-        <button class="btn lang-btn" onclick="cercaVersione('latino')">🏛️ Latino</button>
+
+      <div class="latino-search-row hidden" id="latinoSearchRow">
+        <input type="text" id="latinoQuery" placeholder="Es. Cincinnato dittatore" onkeypress="if(event.key==='Enter')eseguiRicercaVersione()">
+        <button class="btn" onclick="eseguiRicercaVersione()">Cerca</button>
       </div>
+      <button class="btn btn-ghost2 hidden" id="cambiaLinguaBtn" onclick="mostraSceltaLingua()" style="margin-top:10px">← Cambia lingua</button>
     </section>
 
     <section id="sec-ia" class="section hidden">
@@ -758,10 +763,32 @@ async function handleProfileAvatarFile(event){
   reader.readAsDataURL(file);
 }
 
-function cercaVersione(lingua){
+let linguaVersioni = null;
+
+function scegliLingua(lingua){
+  linguaVersioni = lingua;
+  document.getElementById('langBtnRow').classList.add('hidden');
+  document.getElementById('latinoSearchRow').classList.remove('hidden');
+  document.getElementById('cambiaLinguaBtn').classList.remove('hidden');
+  document.getElementById('latinoHint').textContent = lingua === 'greco'
+    ? 'Scrivi il titolo della versione di Greco (o le prime parole del testo).'
+    : 'Scrivi il titolo della versione di Latino (o le prime parole del testo).';
+  document.getElementById('latinoQuery').value = '';
+  document.getElementById('latinoQuery').focus();
+}
+
+function mostraSceltaLingua(){
+  linguaVersioni = null;
+  document.getElementById('langBtnRow').classList.remove('hidden');
+  document.getElementById('latinoSearchRow').classList.add('hidden');
+  document.getElementById('cambiaLinguaBtn').classList.add('hidden');
+  document.getElementById('latinoHint').textContent = 'Scegli la lingua della versione da cercare.';
+}
+
+function eseguiRicercaVersione(){
   const q = document.getElementById('latinoQuery').value.trim();
-  if(!q) return;
-  const sito = lingua === 'greco' ? 'splash-greco.it' : 'latin.it';
+  if(!q || !linguaVersioni) return;
+  const sito = linguaVersioni === 'greco' ? 'splash-greco.it' : 'latin.it';
   const url = 'https://www.google.com/search?q=' + encodeURIComponent('site:' + sito + ' ' + q);
   window.open(url, '_blank');
 }
