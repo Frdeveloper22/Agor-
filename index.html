@@ -52,6 +52,7 @@ body{font-family:'Georgia',serif;background-color:var(--cream);background-image:
 .members-head{padding:14px 16px;border-bottom:1px solid var(--line);font-family:sans-serif;font-weight:700;font-size:14px;color:var(--wine);display:flex;justify-content:space-between;align-items:center}
 .members-head span.count{color:#999;font-weight:400;font-size:12px}
 .member-row{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid #f2ede2}
+.member-del{margin-left:auto;background:none;border:1px solid #d94141;color:#d94141;width:26px;height:26px;border-radius:50%;font-size:13px;cursor:pointer;flex-shrink:0}
 .member-row:last-child{border-bottom:none}
 .member-row .avatar{width:32px;height:32px;font-size:12px}
 .member-row .m-name{font-family:sans-serif;font-size:13px;font-weight:600;flex:1}
@@ -457,7 +458,7 @@ async function loadCurrentProfile(){
   if(!user){ currentUser = null; return; }
   const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
   if(error || !data){ currentUser = null; return; }
-  currentUser = { id: data.id, user: data.username, name: data.full_name, avatar: data.avatar_url };
+  currentUser = { id: data.id, user: data.username, name: data.full_name, avatar: data.avatar_url, isAdmin: !!data.is_admin };
 }
 
 async function initApp(){
@@ -646,12 +647,36 @@ function renderMembers(){
   members.forEach(m => {
     const row = document.createElement('div');
     row.className = 'member-row';
+    const puoiEliminare = currentUser?.isAdmin && m.id !== currentUser.id;
     row.innerHTML = `
       <div class="avatar">${avatarHtml(m.full_name, m.avatar_url)}</div>
       <div class="m-name">${m.full_name}</div>
+      ${puoiEliminare ? `<button class="member-del" title="Elimina utente" onclick="eliminaUtente('${m.id}','${escapeHtml(m.full_name)}')">✕</button>` : ''}
     `;
     list.appendChild(row);
   });
+}
+
+async function eliminaUtente(id, nome){
+  if(!confirm(`Eliminare DEFINITIVAMENTE l'account di ${nome}? Verranno cancellati anche i suoi post e commenti. Questa azione non si può annullare.`)) return;
+
+  const { data, error } = await sb.functions.invoke('clever-handler', {
+    body: { idUtenteDaEliminare: id }
+  });
+
+  if(error){
+    alert('Errore di comunicazione: ' + error.message);
+    return;
+  }
+  if(data?.errore){
+    alert('Errore: ' + data.errore);
+    return;
+  }
+
+  await Promise.all([loadMembers(), loadPosts(), loadReminders()]);
+  renderMembers();
+  renderPosts();
+  renderReminders();
 }
 
 function openProfileModal(){
@@ -899,7 +924,7 @@ function renderPosts(){
 
   posts.forEach((p, i) => {
     if(!Array.isArray(p.comments)) p.comments = [];
-    const isAuthor = currentUser && p.authorId === currentUser.id;
+    const isAuthor = currentUser && (p.authorId === currentUser.id || currentUser.isAdmin);
     const commentsHtml = p.comments.map(c => `
       <div class="comment"><b>${escapeHtml(c.name)}</b> ${escapeHtml(c.text)}</div>
     `).join('');
@@ -940,7 +965,7 @@ async function addComment(i){
 }
 
 async function deletePost(i){
-  if(!currentUser || posts[i].authorId !== currentUser.id) return;
+  if(!currentUser || (posts[i].authorId !== currentUser.id && !currentUser.isAdmin)) return;
   if(!confirm('Eliminare questo post?')) return;
   const { error } = await sb.from('posts').delete().eq('id', posts[i].id);
   if(error){ alert('Errore: ' + error.message); return; }
