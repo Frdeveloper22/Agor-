@@ -96,6 +96,8 @@ nav.bottomnav{position:fixed;bottom:0;left:0;right:0;background:rgba(253,251,247
 .empty-feed .ico{font-size:40px;margin-bottom:14px}
 .empty-feed p{font-size:13.5px;line-height:1.5;max-width:280px;margin:0 auto}
 .post{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:18px;overflow:hidden}
+.post-update{background:#F9F3E3;border-color:#E3CE94}
+.update-badge{width:38px;height:38px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
 .post-head{display:flex;align-items:center;gap:10px;padding:12px 14px}
 .avatar{width:36px;height:36px;border-radius:50%;background:var(--wine);color:#fff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;font-weight:700;font-size:14px;overflow:hidden;flex-shrink:0}
 .avatar img{width:100%;height:100%;object-fit:cover;display:block}
@@ -288,8 +290,13 @@ html{scroll-behavior:smooth}
   <span class="particle" style="left:95%;width:5px;height:5px;--drift:15px;animation-duration:17s;animation-delay:10s"></span>
 </div>
 
+<!-- Schermata di caricamento iniziale: evita che login/app "lampeggino" mentre si verifica la sessione -->
+<div id="initLoading" style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+  <div class="brand" style="animation:none;opacity:.6">αγορά</div>
+</div>
+
 <!-- ================= AUTH ================= -->
-<div id="auth">
+<div id="auth" class="hidden">
   <div class="brand">αγορά</div>
   <div class="brand-sub">2ª — Liceo Classico</div>
   <div class="card">
@@ -527,6 +534,38 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
    semplice "nome utente" (come prima), lo trasformiamo in una finta email
    interna: non serve che esista davvero, serve solo come identificativo unico. */
 const FAKE_EMAIL_DOMAIN = "@agora-class-app.com";
+
+/* ====== VERSIONE E NOVITÀ ======
+   Ad ogni nuovo aggiornamento pubblicato, cambia questi due valori:
+   quando qualcuno apre il sito e la versione è nuova, l'app pubblica
+   automaticamente un post nel feed social con le novità. */
+const APP_VERSION = "56";
+const APP_CHANGELOG = "Risolto lo sfarfallio della schermata di login all'avvio. Aggiunto l'annuncio automatico delle novità ad ogni aggiornamento.";
+
+async function pubblicaAggiornamentoSeNuovo(){
+  if(!currentUser) return;
+  try{
+    const { data: esistente } = await sb
+      .from('posts')
+      .select('id')
+      .eq('is_update', true)
+      .eq('version_tag', APP_VERSION)
+      .limit(1);
+    if(esistente && esistente.length) return; // già annunciato da qualcun altro
+
+    const { error } = await sb.from('posts').insert({
+      author_id: currentUser.id,
+      text_content: `Versione ${APP_VERSION}\n\n${APP_CHANGELOG}`,
+      is_update: true,
+      version_tag: APP_VERSION
+    });
+    if(error) return; // es. doppione arrivato nel frattempo: ignoriamo silenziosamente
+
+    await loadPosts(); // così il post compare subito anche a chi l'ha appena pubblicato
+  }catch(e){
+    console.error('Errore pubblicazione aggiornamento:', e);
+  }
+}
 function usernameToEmail(u){ return u + FAKE_EMAIL_DOMAIN; }
 
 let members = [];       // profili di tutta la classe, per l'elenco membri
@@ -546,8 +585,15 @@ async function initApp(){
   const { data: { session } } = await sb.auth.getSession();
   if(session){
     await loadCurrentProfile();
-    if(currentUser) await enterApp();
+    if(currentUser){
+      await enterApp();
+      document.getElementById('initLoading').classList.add('hidden');
+      return;
+    }
   }
+  // nessuna sessione valida: ora sì, mostriamo il login
+  document.getElementById('initLoading').classList.add('hidden');
+  document.getElementById('auth').classList.remove('hidden');
 }
 initApp();
 
@@ -671,6 +717,7 @@ async function enterApp(){
   document.getElementById('topbarUser').textContent = currentUser.name;
   document.getElementById('topbarAvatarImg').innerHTML = avatarHtml(currentUser.name, currentUser.avatar);
   await Promise.all([loadMembers(), loadReminders(), loadPosts()]);
+  await pubblicaAggiornamentoSeNuovo();
   renderMembers();
   renderReminders();
   renderPosts();
@@ -966,6 +1013,8 @@ async function loadPosts(){
     avatar: p.author ? p.author.avatar_url : null,
     text: p.text_content,
     image: p.image_url,
+    isUpdate: !!p.is_update,
+    versionTag: p.version_tag,
     comments: (p.comments || [])
       .map(c => ({ id: c.id, name: c.author ? c.author.full_name : '???', text: c.text_content }))
       .sort((a,b) => a.id - b.id)
@@ -1042,11 +1091,13 @@ function renderPosts(){
     `).join('');
 
     const div = document.createElement('div');
-    div.className = 'post';
+    div.className = p.isUpdate ? 'post post-update' : 'post';
     div.innerHTML = `
       <div class="post-head">
-        <div class="avatar">${avatarHtml(p.name, p.avatar)}</div>
-        <div><div class="name">${escapeHtml(p.name)}</div></div>
+        ${p.isUpdate
+          ? `<div class="update-badge">🔔</div><div><div class="name">Aggiornamento v${escapeHtml(p.versionTag || '')}</div></div>`
+          : `<div class="avatar">${avatarHtml(p.name, p.avatar)}</div><div><div class="name">${escapeHtml(p.name)}</div></div>`
+        }
         ${isAuthor ? `<button class="post-del" onclick="deletePost(${i})" title="Elimina post">✕</button>` : ''}
       </div>
       ${p.image ? `<div class="post-img" style="background:none;padding:0"><img src="${p.image}" style="width:100%;display:block;object-fit:cover;aspect-ratio:4/3"></div>` : ''}
