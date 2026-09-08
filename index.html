@@ -142,6 +142,11 @@ nav.bottomnav{position:fixed;bottom:0;left:0;right:0;background:rgba(253,251,247
 .photo-preview{position:relative;margin-bottom:14px}
 .photo-preview img{width:100%;max-height:160px;object-fit:cover;border-radius:10px;display:block}
 .photo-preview .rm{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;background:rgba(44,44,44,.65);color:#fff;border:none;cursor:pointer;font-size:13px}
+.file-chip{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px;font-family:sans-serif;font-size:13px}
+.file-chip .rm{width:24px;height:24px;border-radius:50%;background:none;border:1px solid var(--line);color:#888;cursor:pointer;font-size:12px;flex-shrink:0}
+.post-attach{padding:0 14px;margin-top:6px}
+.post-attach a{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--cream);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-family:sans-serif;font-size:13px;color:var(--ink);text-decoration:none}
+.post-attach .dl-hint{color:var(--wine);font-size:11.5px;flex-shrink:0}
 .field textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;font-family:sans-serif;font-size:14px;background:var(--cream);resize:vertical;min-height:70px}
 .field textarea:focus{outline:none;border-color:var(--wine)}
 .modal-actions{display:flex;gap:10px;margin-top:6px}
@@ -520,6 +525,16 @@ html{scroll-behavior:smooth}
         <img id="photoPreviewImg" src="">
         <button class="rm" onclick="removePostPhoto()">✕</button>
       </div>
+
+      <label class="photo-picker" id="filePickerLabel">
+        <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a5.5 5.5 0 0 1-7.78-7.78l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L9.41 17.4a1.5 1.5 0 0 1-2.12-2.12l8.49-8.49"/></svg>
+        <span id="filePickerText">Allega un file (PDF, Word, ecc. — opzionale)</span>
+        <input type="file" id="postAttachInput" class="hidden" onchange="handlePostAttach(event)">
+      </label>
+      <div class="file-chip hidden" id="attachPreview">
+        <span id="attachPreviewName"></span>
+        <button class="rm" onclick="removePostAttach()">✕</button>
+      </div>
       <div class="field">
         <label>Descrizione</label>
         <textarea id="postText" placeholder="Scrivi qualcosa sui tuoi appunti..."></textarea>
@@ -583,8 +598,8 @@ const FAKE_EMAIL_DOMAIN = "@agora-class-app.com";
    Ad ogni nuovo aggiornamento pubblicato, cambia questi due valori:
    quando qualcuno apre il sito e la versione è nuova, l'app pubblica
    automaticamente un post nel feed social con le novità. */
-const APP_VERSION = "59";
-const APP_CHANGELOG = "Aggiunta la data e l'ora di pubblicazione sopra ogni post nel feed, sia per i post normali che per gli annunci di aggiornamento.";
+const APP_VERSION = "60";
+const APP_CHANGELOG = "Ora puoi allegare ai post anche file (PDF, Word, ecc.), non solo foto — utile per condividere appunti in formato documento. Limite 8 MB per file.";
 
 async function pubblicaAggiornamentoSeNuovo(){
   if(!currentUser) return;
@@ -1125,6 +1140,8 @@ async function deleteReminder(i){
 let posts = [];
 let ultimiRisultatiIA = []; // dati grezzi dei ripassi generati in questa sessione, per il pulsante "Salva"
 let pendingPostImage = null;
+let pendingPostAttach = null;
+let pendingPostAttachName = null;
 
 async function loadPosts(){
   const { data, error } = await sb
@@ -1139,6 +1156,8 @@ async function loadPosts(){
     avatar: p.author ? p.author.avatar_url : null,
     text: p.text_content,
     image: p.image_url,
+    fileUrl: p.file_url,
+    fileName: p.file_name,
     isUpdate: !!p.is_update,
     versionTag: p.version_tag,
     createdAt: p.created_at,
@@ -1152,6 +1171,7 @@ function openPostModal(){
   if(!currentUser) return;
   document.getElementById('postText').value = '';
   removePostPhoto();
+  removePostAttach();
   document.getElementById('postModal').classList.remove('hidden');
 }
 
@@ -1179,6 +1199,37 @@ function removePostPhoto(){
   document.getElementById('photoPickerLabel').classList.remove('hidden');
 }
 
+// Limite prudente: file più grandi rallenterebbero troppo il caricamento
+// del feed per tutta la classe (viene salvato direttamente nel database).
+const LIMITE_FILE_MB = 8;
+
+function handlePostAttach(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > LIMITE_FILE_MB * 1024 * 1024){
+    alert(`Il file è troppo grande (max ${LIMITE_FILE_MB} MB). Prova a comprimerlo o a caricarne uno più piccolo.`);
+    event.target.value = '';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    pendingPostAttach = e.target.result;
+    pendingPostAttachName = file.name;
+    document.getElementById('attachPreviewName').textContent = '📎 ' + file.name;
+    document.getElementById('attachPreview').classList.remove('hidden');
+    document.getElementById('filePickerLabel').classList.add('hidden');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePostAttach(){
+  pendingPostAttach = null;
+  pendingPostAttachName = null;
+  document.getElementById('postAttachInput').value = '';
+  document.getElementById('attachPreview').classList.add('hidden');
+  document.getElementById('filePickerLabel').classList.remove('hidden');
+}
+
 function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
 }
@@ -1186,12 +1237,14 @@ function escapeHtml(str){
 async function publishPost(){
   if(!currentUser) return;
   const text = document.getElementById('postText').value.trim();
-  if(!text && !pendingPostImage) return;
+  if(!text && !pendingPostImage && !pendingPostAttach) return;
 
   const { error } = await sb.from('posts').insert({
     author_id: currentUser.id,
     text_content: text,
-    image_url: pendingPostImage
+    image_url: pendingPostImage,
+    file_url: pendingPostAttach,
+    file_name: pendingPostAttachName
   });
   if(error){ alert('Errore nella pubblicazione: ' + error.message); return; }
   await loadPosts();
@@ -1239,6 +1292,7 @@ function renderPosts(){
         ${isAuthor ? `<button class="post-del" onclick="deletePost(${i})" title="Elimina post">✕</button>` : ''}
       </div>
       ${p.image ? `<div class="post-img" style="background:none;padding:0"><img src="${p.image}" style="width:100%;display:block;object-fit:cover;aspect-ratio:4/3"></div>` : ''}
+      ${p.fileUrl ? `<div class="post-attach"><a href="${p.fileUrl}" download="${escapeHtml(p.fileName || 'file')}">📎 ${escapeHtml(p.fileName || 'File allegato')} <span class="dl-hint">↓ scarica</span></a></div>` : ''}
       ${p.text ? `<div class="post-body"><p>${escapeHtml(p.text)}</p></div>` : ''}
       ${p.comments.length ? `<div class="comments">${commentsHtml}</div>` : ''}
       <div class="reply-row">
