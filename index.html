@@ -598,8 +598,8 @@ const FAKE_EMAIL_DOMAIN = "@agora-class-app.com";
    Ad ogni nuovo aggiornamento pubblicato, cambia questi due valori:
    quando qualcuno apre il sito e la versione è nuova, l'app pubblica
    automaticamente un post nel feed social con le novità. */
-const APP_VERSION = "60";
-const APP_CHANGELOG = "Ora puoi allegare ai post anche file (PDF, Word, ecc.), non solo foto — utile per condividere appunti in formato documento. Limite 8 MB per file.";
+const APP_VERSION = "61";
+const APP_CHANGELOG = "Σωκράτης ora usa Gemma 4 ed è più affidabile: se un modello è occupato prova in automatico l'altro. Mentre prepara le risposte vedi un contatore dei secondi (può servire fino a un minuto per i quiz).";
 
 async function pubblicaAggiornamentoSeNuovo(){
   if(!currentUser) return;
@@ -1360,11 +1360,24 @@ function handleIaFile(event){
 // Ritorna { risposta, flashcards, quiz } oppure { errore: "..." }.
 async function inviaAGemma4(fileBase64, testo, onProgress){
   try{
-    onProgress?.("Σωκράτης sta pensando...");
+    const inizioAttesa = Date.now();
+    const aggiornaAttesa = () => {
+      const sec = Math.round((Date.now() - inizioAttesa) / 1000);
+      onProgress?.(sec < 8
+        ? "Σωκράτης sta pensando... (" + sec + "s)"
+        : "Σωκράτης sta preparando la risposta, può volerci fino a un minuto... (" + sec + "s)");
+    };
+    aggiornaAttesa();
+    const timerAttesa = setInterval(aggiornaAttesa, 1000);
 
-    const { data, error } = await sb.functions.invoke('super-action', {
-      body: { testo: testo || null, fotoBase64: fileBase64 || null }
-    });
+    let data, error;
+    try{
+      ({ data, error } = await sb.functions.invoke('super-action', {
+        body: { testo: testo || null, fotoBase64: fileBase64 || null }
+      }));
+    } finally {
+      clearInterval(timerAttesa);
+    }
 
     if(error){
       return { errore: "Errore di comunicazione con Σωκράτης: " + error.message };
