@@ -290,6 +290,37 @@ html{scroll-behavior:smooth}
 /* le flashcard "danzano" leggermente al passaggio del mouse */
 .flashcard{transition:transform .2s ease}
 .flashcard:hover{transform:translateY(-4px)}
+/* ===== Quiz del giorno ===== */
+.quiz-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.quiz-head h2{margin-bottom:0!important}
+.streak-chip{font-family:sans-serif;font-weight:700;font-size:14px;background:#fff;border:1px solid var(--line);border-radius:20px;padding:6px 12px;color:var(--wine2);white-space:nowrap}
+.streak-chip.on{background:#fff4e0;border-color:#f0b35a;color:#b25e00}
+.qd-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;font-family:sans-serif;box-shadow:0 4px 14px rgba(20,60,30,.06)}
+.qd-card .qd-topic{font-family:'Georgia',serif;font-size:17px;color:var(--wine2);font-weight:600;margin:4px 0 12px}
+.qd-card .qd-label{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#999}
+.qd-card p{font-size:13.5px;line-height:1.5;margin-bottom:12px}
+.qd-prog{height:6px;background:var(--line);border-radius:4px;overflow:hidden;margin-bottom:14px}
+.qd-prog>div{height:100%;background:var(--wine);transition:width .4s}
+.qd-q{font-size:15px;font-weight:600;line-height:1.45;margin-bottom:12px}
+.qd-expl{font-size:12.5px;line-height:1.5;background:var(--cream);border-left:3px solid var(--wine);border-radius:6px;padding:9px 11px;margin:6px 0 12px;color:#444}
+.qd-score{font-family:'Georgia',serif;font-size:38px;text-align:center;color:var(--wine2);margin:6px 0}
+.qd-recap{font-size:12.5px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.qd-recap div{padding:4px 0;line-height:1.4}
+.qd-err{color:#c62828;font-size:12.5px;margin:6px 0}
+.rank-row{display:flex;align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid var(--line);font-family:sans-serif;font-size:13.5px}
+.rank-row:last-child{border-bottom:none}
+.rank-pos{width:22px;text-align:center;font-weight:700;color:var(--wine2)}
+.rank-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rank-me{font-weight:700}
+.rank-val{font-weight:700;color:#b25e00;white-space:nowrap}
+.rank-pts{font-size:11.5px;color:#999;white-space:nowrap}
+.qd-admin textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:9px;font-family:sans-serif;font-size:13px;margin-bottom:8px;resize:vertical}
+.qd-topic-row{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.qd-topic-row span{flex:1;min-width:0}
+.qd-topic-row small{color:#999;display:block;font-size:10.5px}
+.qd-topic-row button{border:1px solid var(--line);background:#fff;border-radius:8px;font-size:11.5px;padding:5px 8px;cursor:pointer;font-family:sans-serif;color:var(--wine2)}
+.qd-topic-row button.del{color:#c62828}
+.qd-topic-row.fissato{background:#fff4e0}
 </style>
 </head>
 <body>
@@ -417,6 +448,20 @@ html{scroll-behavior:smooth}
         <div class="ico">🗓️</div>
         <p>Nessun promemoria al momento.<br>Tocca il "+" per aggiungerne uno.</p>
       </div>
+    </section>
+
+    <!-- QUIZ DEL GIORNO -->
+    <section id="sec-quiz" class="section hidden">
+      <div class="quiz-head">
+        <h2>Quiz del giorno</h2>
+        <div class="streak-chip" id="streakChip">🔥 0</div>
+      </div>
+      <div id="quizBox"></div>
+
+      <h2 style="margin-top:22px;font-size:17px">Classifica della classe</h2>
+      <div class="qd-card" id="classificaBox"><p style="margin:0;color:#999">Caricamento…</p></div>
+
+      <div id="quizAdminBox" class="hidden"></div>
     </section>
 
     <!-- IA -->
@@ -569,6 +614,10 @@ html{scroll-behavior:smooth}
       <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18"/><path d="M8 2v4M16 2v4"/></svg>
       Promemoria
     </button>
+    <button class="navbtn" id="nav-quiz" onclick="showSection('quiz')">
+      <svg viewBox="0 0 24 24"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-4-1-7 1-10z"/></svg>
+      Quiz
+    </button>
     <button class="navbtn" id="nav-latino" onclick="showSection('latino')">
       <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       Versioni
@@ -598,8 +647,8 @@ const FAKE_EMAIL_DOMAIN = "@agora-class-app.com";
    Ad ogni nuovo aggiornamento pubblicato, cambia questi due valori:
    quando qualcuno apre il sito e la versione è nuova, l'app pubblica
    automaticamente un post nel feed social con le novità. */
-const APP_VERSION = "61";
-const APP_CHANGELOG = "Σωκράτης ora usa Gemma 4 ed è più affidabile: se un modello è occupato prova in automatico l'altro. Mentre prepara le risposte vedi un contatore dei secondi (può servire fino a un minuto per i quiz).";
+const APP_VERSION = "62";
+const APP_CHANGELOG = "Nuova sezione Quiz: ogni giorno un quiz di 5 domande per tutta la classe, scelto da una lista di argomenti e controllato prima di essere pubblicato. Se lo fai ogni giorno cresce la tua serie 🔥 e sali nella classifica. L'admin può aggiungere e scegliere gli argomenti.";
 
 async function pubblicaAggiornamentoSeNuovo(){
   if(!currentUser) return;
@@ -1031,13 +1080,14 @@ function eseguiRicercaVersione(){
 }
 
 function showSection(name){
-  ['social','rem','ia','latino'].forEach(s=>{
+  ['social','rem','quiz','ia','latino'].forEach(s=>{
     document.getElementById('sec-'+s).classList.toggle('hidden', s!==name);
     document.getElementById('nav-'+s).classList.toggle('active', s===name);
   });
   document.getElementById('iaInputBar').classList.toggle('hidden', name!=='ia');
   document.getElementById('fabSocial').classList.toggle('hidden', name!=='social');
   document.getElementById('fabRem').classList.toggle('hidden', name!=='rem');
+  if(name === 'quiz') apriSezioneQuiz();
   if(name === 'social'){
     requestAnimationFrame(() => {
       const main = document.querySelector('main');
@@ -1634,6 +1684,251 @@ async function eliminaRipasso(id){
 document.getElementById('iaText').addEventListener('keypress', e=>{
   if(e.key === 'Enter') inviaMessaggio();
 });
+
+/* ====================== QUIZ DEL GIORNO ======================
+   Il quiz viene preparato UNA volta al giorno dalla Edge Function "super-action"
+   (argomento dalla lista → generazione → verifica) e salvato nella tabella daily_quiz:
+   tutta la classe vede le stesse domande. Le risposte vanno in quiz_attempts, e lo
+   streak/classifica li calcola la vista SQL quiz_classifica. */
+const ROMA_FMT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' });
+function oggiRoma(){ return ROMA_FMT.format(new Date()); }
+
+let quizCorrente = null;      // { giorno, argomento, domande }
+let quizRisposte = [];        // indici scelti finora
+let quizBloccato = false;     // true mentre si salva una risposta
+let quizInCaricamento = false;
+
+function elq(id){ return document.getElementById(id); }
+
+async function apriSezioneQuiz(){
+  if(!currentUser) return;
+  caricaClassificaQuiz();
+  disegnaAdminQuiz();
+  if(!quizCorrente || quizCorrente.giorno !== oggiRoma()){
+    await ottieniQuizDiOggi();
+  }
+}
+
+// Chiede il quiz al server; se un altro compagno lo sta già facendo preparare, aspetta.
+async function richiediQuizAlServer(rigenera, boxEl){
+  const inizio = Date.now();
+  const timer = setInterval(() => {
+    const s = Math.round((Date.now() - inizio) / 1000);
+    boxEl.innerHTML = `<div class="qd-card"><p>⏳ Σωκράτης sta preparando il quiz di oggi e controllando che le risposte siano giuste. Può volerci fino a un minuto… (${s}s)</p></div>`;
+  }, 1000);
+  try{
+    for(let giro = 0; giro < 60; giro++){
+      const { data, error } = await sb.functions.invoke('super-action', {
+        body: { modo: 'quiz_giorno', rigenera: rigenera && giro === 0 }
+      });
+      if(error) return { errore: 'Errore di comunicazione: ' + error.message };
+      if(data?.errore) return { errore: data.errore };
+      if(data?.quiz) return { quiz: data.quiz };
+      await new Promise(r => setTimeout(r, 4000)); // altri lo stanno preparando
+    }
+    return { errore: 'Il quiz sta impiegando troppo, riprova tra poco.' };
+  } finally {
+    clearInterval(timer);
+  }
+}
+
+async function ottieniQuizDiOggi(rigenera){
+  if(quizInCaricamento) return;
+  quizInCaricamento = true;
+  const box = elq('quizBox');
+  try{
+    box.innerHTML = '<div class="qd-card"><p>Caricamento…</p></div>';
+    let quiz = null;
+    if(!rigenera){
+      const { data } = await sb.from('daily_quiz').select('*').eq('giorno', oggiRoma()).eq('stato', 'ready').maybeSingle();
+      quiz = data;
+    }
+    if(!quiz){
+      const esito = await richiediQuizAlServer(!!rigenera, box);
+      if(esito.errore){
+        box.innerHTML = `<div class="qd-card"><p class="qd-err">${escapeHtml(esito.errore)}</p><button class="btn" onclick="ottieniQuizDiOggi()">Riprova</button></div>`;
+        return;
+      }
+      quiz = esito.quiz;
+    }
+    quizCorrente = quiz;
+    const { data: t } = await sb.from('quiz_attempts').select('*')
+      .eq('user_id', currentUser.id).eq('giorno', quiz.giorno).maybeSingle();
+    quizRisposte = Array.isArray(t?.risposte) ? t.risposte : [];
+    if(t?.completato || quizRisposte.length >= quiz.domande.length) mostraRisultatoQuiz();
+    else mostraIntroQuiz();
+  } catch(e){
+    box.innerHTML = `<div class="qd-card"><p class="qd-err">Qualcosa è andato storto: ${escapeHtml(e.message || String(e))}</p><button class="btn" onclick="ottieniQuizDiOggi()">Riprova</button></div>`;
+  } finally {
+    quizInCaricamento = false;
+  }
+}
+
+function mostraIntroQuiz(){
+  const q = quizCorrente;
+  const iniziato = quizRisposte.length > 0;
+  elq('quizBox').innerHTML = `
+    <div class="qd-card">
+      <div class="qd-label">Argomento di oggi</div>
+      <div class="qd-topic">${escapeHtml(q.argomento)}</div>
+      <p>${q.domande.length} domande a scelta multipla. Rispondi oggi per far crescere la tua serie 🔥</p>
+      <button class="btn" onclick="mostraDomandaQuiz()">${iniziato ? 'Riprendi il quiz' : 'Inizia il quiz'}</button>
+    </div>`;
+}
+
+function mostraDomandaQuiz(errore){
+  const q = quizCorrente;
+  const i = quizRisposte.length;
+  if(i >= q.domande.length){ mostraRisultatoQuiz(); return; }
+  const d = q.domande[i];
+  quizBloccato = false;
+  elq('quizBox').innerHTML = `
+    <div class="qd-card">
+      <div class="qd-label">Domanda ${i + 1} di ${q.domande.length}</div>
+      <div class="qd-prog"><div style="width:${(i / q.domande.length) * 100}%"></div></div>
+      <div class="qd-q">${escapeHtml(d.domanda)}</div>
+      <div id="qdOpzioni">${d.opzioni.map((o, k) => `<button class="quiz-opt" onclick="rispondiQuizDelGiorno(${k})">${escapeHtml(o)}</button>`).join('')}</div>
+      <div id="qdEsito">${errore ? `<p class="qd-err">${escapeHtml(errore)}</p>` : ''}</div>
+    </div>`;
+}
+
+async function rispondiQuizDelGiorno(k){
+  if(quizBloccato) return;
+  quizBloccato = true;
+  const q = quizCorrente;
+  const i = quizRisposte.length;
+  const d = q.domande[i];
+  const nuove = [...quizRisposte, k];
+  const punti = nuove.filter((r, ix) => r === q.domande[ix].corretta).length;
+  const finito = nuove.length === q.domande.length;
+
+  const { error } = await sb.from('quiz_attempts').upsert({
+    user_id: currentUser.id, giorno: q.giorno, risposte: nuove,
+    punteggio: punti, totale: q.domande.length, completato: finito,
+    updated_at: new Date().toISOString()
+  });
+  if(error){
+    mostraDomandaQuiz('Non sono riuscito a salvare la risposta (connessione?). Riprova a toccarla.');
+    return;
+  }
+  quizRisposte = nuove;
+
+  // colora le opzioni
+  const bottoni = elq('qdOpzioni').querySelectorAll('.quiz-opt');
+  bottoni.forEach((b, idx) => {
+    b.disabled = true;
+    if(idx === d.corretta) b.classList.add('correct');
+    else if(idx === k) b.classList.add('wrong');
+  });
+  elq('qdEsito').innerHTML = `
+    ${d.spiegazione ? `<div class="qd-expl">${k === d.corretta ? '✅ Giusto! ' : '❌ Non proprio. '}${escapeHtml(d.spiegazione)}</div>` : ''}
+    <button class="btn" onclick="mostraDomandaQuiz()">${finito ? 'Vedi il risultato' : 'Avanti'}</button>`;
+  if(finito) caricaClassificaQuiz();
+}
+
+function mostraRisultatoQuiz(){
+  const q = quizCorrente;
+  const punti = quizRisposte.filter((r, ix) => r === q.domande[ix]?.corretta).length;
+  const tot = q.domande.length;
+  const frase = punti === tot ? 'Perfetto! Σωκράτης è fiero di te 🏛️'
+              : punti >= tot * 0.6 ? 'Bel lavoro!'
+              : 'Non scoraggiarti: rileggi le risposte qui sotto e domani va meglio.';
+  elq('quizBox').innerHTML = `
+    <div class="qd-card">
+      <div class="qd-label">Quiz di oggi completato · ${escapeHtml(q.argomento)}</div>
+      <div class="qd-score">${punti} / ${tot}</div>
+      <p style="text-align:center">${frase}<br>Torna domani per continuare la serie 🔥</p>
+      <div class="qd-recap">
+        ${q.domande.map((d, ix) => {
+          const ok = quizRisposte[ix] === d.corretta;
+          return `<div>${ok ? '✅' : '❌'} <b>${escapeHtml(d.domanda)}</b><br><span style="color:#2e7d32">Risposta giusta: ${escapeHtml(d.opzioni[d.corretta])}</span>${d.spiegazione ? `<br><span style="color:#666">${escapeHtml(d.spiegazione)}</span>` : ''}</div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  caricaClassificaQuiz();
+}
+
+async function caricaClassificaQuiz(){
+  const box = elq('classificaBox');
+  const { data, error } = await sb.from('quiz_classifica').select('*');
+  if(error){ box.innerHTML = '<p style="margin:0;color:#999">Classifica non disponibile.</p>'; return; }
+  const lista = (data || []).filter(r => r.quiz > 0)
+    .sort((a, b) => b.streak - a.streak || b.punti - a.punti)
+    .slice(0, 10);
+  const mio = (data || []).find(r => r.user_id === currentUser.id);
+  const chip = elq('streakChip');
+  const s = mio?.streak || 0;
+  chip.textContent = '🔥 ' + s;
+  chip.classList.toggle('on', s > 0);
+  if(!lista.length){
+    box.innerHTML = '<p style="margin:0;color:#999">Nessuno ha ancora fatto il quiz. Sii il primo! 🔥</p>';
+    return;
+  }
+  box.innerHTML = lista.map((r, ix) => `
+    <div class="rank-row">
+      <div class="rank-pos">${['🥇','🥈','🥉'][ix] || (ix + 1)}</div>
+      <div class="rank-name ${r.user_id === currentUser.id ? 'rank-me' : ''}">${escapeHtml(r.full_name || r.username || '?')}</div>
+      <div class="rank-pts">${r.punti} pt</div>
+      <div class="rank-val">🔥 ${r.streak}</div>
+    </div>`).join('');
+}
+
+/* ---- Pannello admin: argomenti ---- */
+async function disegnaAdminQuiz(){
+  const box = elq('quizAdminBox');
+  if(!currentUser?.isAdmin){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const { data: argomenti } = await sb.from('quiz_topics').select('*')
+    .order('usato_il', { ascending: true, nullsFirst: true }).order('created_at', { ascending: true });
+  const oggi = oggiRoma();
+  const righe = (argomenti || []).map(a => `
+    <div class="qd-topic-row ${a.data_fissata === oggi ? 'fissato' : ''}">
+      <span>${escapeHtml(a.titolo)}<small>${a.data_fissata === oggi ? '📌 scelto per oggi · ' : ''}${a.usato_il ? 'ultimo uso: ' + a.usato_il : 'non ancora usato'}</small></span>
+      <button onclick="fissaArgomentoOggi(${a.id})">Usa oggi</button>
+      <button class="del" onclick="eliminaArgomentoQuiz(${a.id})">✕</button>
+    </div>`).join('') || '<p style="color:#999;font-size:12.5px">Nessun argomento: userò quelli di riserva.</p>';
+  box.innerHTML = `
+    <h2 style="margin-top:22px;font-size:17px">Admin · argomenti del quiz</h2>
+    <div class="qd-card qd-admin">
+      <p style="font-size:12.5px;color:#666">Ogni giorno esce il primo argomento non ancora usato (poi si ricomincia dal meno recente). Con "Usa oggi" scegli tu l'argomento di oggi, prima che qualcuno apra il quiz.</p>
+      <textarea id="nuoviArgomenti" placeholder="Un argomento per riga, ad esempio:&#10;Le guerre persiane: Maratona e Salamina&#10;Grammatica latina: il gerundio"></textarea>
+      <button class="btn" onclick="aggiungiArgomentiQuiz()">Aggiungi alla lista</button>
+      <button class="btn btn-ghost" style="margin-top:8px" onclick="rigeneraQuizOggi()">↻ Rigenera il quiz di oggi</button>
+      <div id="qdAdminMsg" class="qd-err"></div>
+      <div style="margin-top:12px">${righe}</div>
+    </div>`;
+}
+
+async function aggiungiArgomentiQuiz(){
+  const righe = elq('nuoviArgomenti').value.split('\n').map(s => s.trim()).filter(s => s.length >= 3);
+  if(!righe.length) return;
+  const { error } = await sb.from('quiz_topics').insert(righe.map(titolo => ({ titolo })));
+  elq('qdAdminMsg').textContent = error ? 'Errore: ' + error.message : '';
+  disegnaAdminQuiz();
+}
+
+async function eliminaArgomentoQuiz(id){
+  if(!confirm('Eliminare questo argomento dalla lista?')) return;
+  await sb.from('quiz_topics').delete().eq('id', id);
+  disegnaAdminQuiz();
+}
+
+async function fissaArgomentoOggi(id){
+  const oggi = oggiRoma();
+  const { data: gia } = await sb.from('daily_quiz').select('stato').eq('giorno', oggi).maybeSingle();
+  await sb.from('quiz_topics').update({ data_fissata: null }).eq('data_fissata', oggi);
+  const { error } = await sb.from('quiz_topics').update({ data_fissata: oggi }).eq('id', id);
+  elq('qdAdminMsg').textContent = error ? 'Errore: ' + error.message
+    : (gia ? 'Il quiz di oggi esiste già: premi "Rigenera il quiz di oggi" per usare questo argomento.' : '');
+  disegnaAdminQuiz();
+}
+
+async function rigeneraQuizOggi(){
+  if(!confirm('Rigenerare il quiz di oggi? Le risposte già date oggi dai compagni verranno azzerate.')) return;
+  quizCorrente = null;
+  await ottieniQuizDiOggi(true);
+  disegnaAdminQuiz();
+}
 </script>
 </body>
 </html>
