@@ -312,6 +312,7 @@ html{scroll-behavior:smooth}
 .rank-pos{width:22px;text-align:center;font-weight:700;color:var(--wine2)}
 .rank-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rank-me{font-weight:700}
+.rank-reset{border:1px solid var(--line);background:#fff;border-radius:8px;font-size:13px;padding:2px 8px;cursor:pointer;color:#c62828}
 .rank-val{font-weight:700;color:#b25e00;white-space:nowrap}
 .rank-pts{font-size:11.5px;color:#999;white-space:nowrap}
 .qd-admin textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:8px;padding:9px;font-family:sans-serif;font-size:13px;margin-bottom:8px;resize:vertical}
@@ -647,8 +648,8 @@ const FAKE_EMAIL_DOMAIN = "@agora-class-app.com";
    Ad ogni nuovo aggiornamento pubblicato, cambia questi due valori:
    quando qualcuno apre il sito e la versione è nuova, l'app pubblica
    automaticamente un post nel feed social con le novità. */
-const APP_VERSION = "62";
-const APP_CHANGELOG = "Nuova sezione Quiz: ogni giorno un quiz di 5 domande per tutta la classe, scelto da una lista di argomenti e controllato prima di essere pubblicato. Se lo fai ogni giorno cresce la tua serie 🔥 e sali nella classifica. L'admin può aggiungere e scegliere gli argomenti.";
+const APP_VERSION = "64";
+const APP_CHANGELOG = "Il feed Social ora si apre sempre sull'ultimo messaggio, anche quando le foto si caricano dopo.";
 
 async function pubblicaAggiornamentoSeNuovo(){
   if(!currentUser) return;
@@ -681,8 +682,32 @@ let reminders = [];
 let currentUser = null; // { id, user, name, avatar }
 let pendingAvatar = null; // foto profilo scelta durante la registrazione
 
+
+/* ---- Foto più leggere: ridimensiona prima di salvare ---- */
+function ridimensionaImmagine(dataUrl, maxDim, qualita){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const scala = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scala), h = Math.round(img.height * scala);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', qualita));
+    };
+    img.onerror = () => resolve(dataUrl); // se qualcosa va storto, tieni l'originale
+    img.src = dataUrl;
+  });
+}
+function avatarMembro(id){
+  const m = members.find(x => x.id === id);
+  return m ? m.avatar_url : null;
+}
+
 async function loadCurrentProfile(){
-  const { data: { user } } = await sb.auth.getUser();
+  // getSession legge la sessione già salvata sul telefono: niente attesa di rete
+  const { data: { session } } = await sb.auth.getSession();
+  const user = session?.user;
   if(!user){ currentUser = null; return; }
   const { data, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
   if(error || !data){ currentUser = null; return; }
@@ -732,8 +757,8 @@ function handleAvatarFile(event){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    pendingAvatar = e.target.result;
+  reader.onload = async e => {
+    pendingAvatar = await ridimensionaImmagine(e.target.result, 256, 0.85);
     document.getElementById('avatarPreviewImg').src = pendingAvatar;
     document.getElementById('avatarPreview').classList.remove('hidden');
     document.getElementById('avatarPickerLabel').classList.add('hidden');
@@ -825,15 +850,31 @@ async function enterApp(){
   document.getElementById('topbarUser').textContent = currentUser.name;
   document.getElementById('topbarAvatarImg').innerHTML = avatarHtml(currentUser.name, currentUser.avatar);
   await Promise.all([loadMembers(), loadReminders(), loadPosts()]);
-  await pubblicaAggiornamentoSeNuovo();
   renderMembers();
   renderReminders();
   renderPosts();
   showSection('social');
   startRealtime();
+  pubblicaAggiornamentoSeNuovo();   // in background: non fa più aspettare l'ingresso
+  alleggerisciMioAvatar();
   setTimeout(apriPromptNotificheSeNecessario, 1200);
   // Nota: Σωκράτης ora gira nel cloud (Supabase + Gemini), quindi non serve
   // più scaricare/caricare nulla all'avvio: è pronto all'uso da subito.
+}
+
+// Se la mia foto profilo è un'immagine pesante (caricata prima dell'aggiornamento),
+// la rimpicciolisco una volta sola: rende più veloce l'app per tutti.
+async function alleggerisciMioAvatar(){
+  try{
+    const a = currentUser?.avatar;
+    if(!a || a.length < 150000) return;
+    const piccola = await ridimensionaImmagine(a, 256, 0.85);
+    if(piccola.length >= a.length) return;
+    const { error } = await sb.from('profiles').update({ avatar_url: piccola }).eq('id', currentUser.id);
+    if(error) return;
+    currentUser.avatar = piccola;
+    document.getElementById('topbarAvatarImg').innerHTML = avatarHtml(currentUser.name, piccola);
+  }catch(e){ console.error(e); }
 }
 
 let realtimeChannel = null;
@@ -1037,7 +1078,7 @@ async function handleProfileAvatarFile(event){
   if(!file || !currentUser) return;
   const reader = new FileReader();
   reader.onload = async (e) => {
-    const newAvatar = e.target.result;
+    const newAvatar = await ridimensionaImmagine(e.target.result, 256, 0.85);
     const { error } = await sb.from('profiles').update({ avatar_url: newAvatar }).eq('id', currentUser.id);
     if(error){ alert('Errore nel salvataggio della foto: ' + error.message); return; }
     currentUser.avatar = newAvatar;
@@ -1088,12 +1129,7 @@ function showSection(name){
   document.getElementById('fabSocial').classList.toggle('hidden', name!=='social');
   document.getElementById('fabRem').classList.toggle('hidden', name!=='rem');
   if(name === 'quiz') apriSezioneQuiz();
-  if(name === 'social'){
-    requestAnimationFrame(() => {
-      const main = document.querySelector('main');
-      if(main) main.scrollTop = main.scrollHeight;
-    });
-  }
+  if(name === 'social') avviaAutoScrollFeed();
 }
 
 /* -------- Promemoria (chiunque sia collegato può aggiungere/modificare/eliminare) -------- */
@@ -1193,20 +1229,24 @@ let pendingPostImage = null;
 let pendingPostAttach = null;
 let pendingPostAttachName = null;
 
+// Il feed si carica in due tempi: prima testo, nomi e commenti (leggeri), poi le
+// immagini, che pesano molto. Le immagini già scaricate restano in memoria.
+const imgCache = {};
+const imgControllati = new Set();
+
 async function loadPosts(){
   const { data, error } = await sb
     .from('posts')
-    .select('*, author:profiles(username,full_name,avatar_url), comments(*, author:profiles(full_name))')
-    .order('created_at', { ascending: true });
+    .select('id, author_id, text_content, file_name, is_update, version_tag, created_at, author:profiles(full_name), comments(id, text_content, author:profiles(full_name))')
+    .order('created_at', { ascending: false })
+    .limit(40);
   if(error){ console.error(error); posts = []; return; }
-  posts = (data || []).map(p => ({
+  posts = (data || []).reverse().map(p => ({
     id: p.id,
     authorId: p.author_id,
     name: p.author ? p.author.full_name : '???',
-    avatar: p.author ? p.author.avatar_url : null,
     text: p.text_content,
-    image: p.image_url,
-    fileUrl: p.file_url,
+    image: imgCache[p.id] || null,
     fileName: p.file_name,
     isUpdate: !!p.is_update,
     versionTag: p.version_tag,
@@ -1215,6 +1255,31 @@ async function loadPosts(){
       .map(c => ({ id: c.id, name: c.author ? c.author.full_name : '???', text: c.text_content }))
       .sort((a,b) => a.id - b.id)
   }));
+  caricaImmaginiPost(); // in background, senza far aspettare
+}
+
+async function caricaImmaginiPost(){
+  const ids = posts.map(p => p.id).filter(id => !imgControllati.has(id));
+  if(!ids.length) return;
+  ids.forEach(id => imgControllati.add(id));
+  const { data, error } = await sb.from('posts').select('id, image_url').in('id', ids).not('image_url', 'is', null);
+  if(error){ ids.forEach(id => imgControllati.delete(id)); return; }
+  if(!data || !data.length) return;
+  data.forEach(r => { imgCache[r.id] = r.image_url; });
+  posts.forEach(p => { if(imgCache[p.id]) p.image = imgCache[p.id]; });
+  renderPosts();
+}
+
+// Gli allegati (PDF, Word…) pesano: si scaricano solo quando li tocchi.
+async function scaricaAllegato(id, nome){
+  const { data, error } = await sb.from('posts').select('file_url').eq('id', id).single();
+  if(error || !data?.file_url){ alert('Non riesco a scaricare il file, riprova.'); return; }
+  const a = document.createElement('a');
+  a.href = data.file_url;
+  a.download = nome || 'file';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 function openPostModal(){
@@ -1233,8 +1298,8 @@ function handlePostFile(event){
   const file = event.target.files[0];
   if(!file) return;
   const reader = new FileReader();
-  reader.onload = e => {
-    pendingPostImage = e.target.result;
+  reader.onload = async e => {
+    pendingPostImage = await ridimensionaImmagine(e.target.result, 1280, 0.8);
     document.getElementById('photoPreviewImg').src = pendingPostImage;
     document.getElementById('photoPreview').classList.remove('hidden');
     document.getElementById('photoPickerLabel').classList.add('hidden');
@@ -1313,9 +1378,38 @@ function formattaData(iso){
   return `${giorno} · ${ora}`;
 }
 
+/* ---- Il feed parte (e resta) in fondo, come una chat ---- */
+let primoDisegnoFeed = true;
+let autoScrollFeed = false;
+let timerAutoScroll = null;
+
+// Nota: a scorrere è la PAGINA intera (window), non l'elemento <main>.
+function scrollFeedInFondo(){
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }); // senza animazione
+}
+// Quando una foto finisce di caricarsi il feed si allunga: se l'utente non ha ancora
+// scorso a mano, si riporta in fondo.
+function feedImgCaricata(){ if(autoScrollFeed) scrollFeedInFondo(); }
+
+function avviaAutoScrollFeed(){
+  autoScrollFeed = true;
+  scrollFeedInFondo();
+  requestAnimationFrame(scrollFeedInFondo);
+  clearTimeout(timerAutoScroll);
+  [150, 500, 1200, 2500].forEach(ms => setTimeout(() => { if(autoScrollFeed) scrollFeedInFondo(); }, ms));
+  timerAutoScroll = setTimeout(() => { autoScrollFeed = false; }, 3500);
+}
+(function(){
+  const ferma = () => { autoScrollFeed = false; };
+  ['touchstart','wheel','mousedown','keydown'].forEach(ev => window.addEventListener(ev, ferma, { passive: true }));
+})();
+
 function renderPosts(){
   const list = document.getElementById('postsList');
   const empty = document.getElementById('socialEmpty');
+  const eraInFondo = (document.documentElement.scrollHeight - window.scrollY - window.innerHeight) < 400;
+  const devoScendere = primoDisegnoFeed || eraInFondo;
+  if(posts.length) primoDisegnoFeed = false;
   list.innerHTML = '';
 
   if(posts.length === 0){
@@ -1337,12 +1431,12 @@ function renderPosts(){
       <div class="post-head">
         ${p.isUpdate
           ? `<div class="update-badge">🔔</div><div><div class="name">Aggiornamento v${escapeHtml(p.versionTag || '')}</div><div class="post-date">${formattaData(p.createdAt)}</div></div>`
-          : `<div class="avatar">${avatarHtml(p.name, p.avatar)}</div><div><div class="name">${escapeHtml(p.name)}</div><div class="post-date">${formattaData(p.createdAt)}</div></div>`
+          : `<div class="avatar">${avatarHtml(p.name, avatarMembro(p.authorId))}</div><div><div class="name">${escapeHtml(p.name)}</div><div class="post-date">${formattaData(p.createdAt)}</div></div>`
         }
         ${isAuthor ? `<button class="post-del" onclick="deletePost(${i})" title="Elimina post">✕</button>` : ''}
       </div>
-      ${p.image ? `<div class="post-img" style="background:none;padding:0"><img src="${p.image}" style="width:100%;display:block;object-fit:cover;aspect-ratio:4/3"></div>` : ''}
-      ${p.fileUrl ? `<div class="post-attach"><a href="${p.fileUrl}" download="${escapeHtml(p.fileName || 'file')}">📎 ${escapeHtml(p.fileName || 'File allegato')} <span class="dl-hint">↓ scarica</span></a></div>` : ''}
+      ${p.image ? `<div class="post-img" style="background:none;padding:0"><img src="${p.image}" onload="feedImgCaricata()" style="width:100%;display:block;object-fit:cover;aspect-ratio:4/3"></div>` : ''}
+      ${p.fileName ? `<div class="post-attach"><a href="#" onclick="scaricaAllegato(${JSON.stringify(p.id).replace(/"/g,'&quot;')}, ${JSON.stringify(p.fileName).replace(/"/g,'&quot;')});return false;">📎 ${escapeHtml(p.fileName || 'File allegato')} <span class="dl-hint">↓ scarica</span></a></div>` : ''}
       ${p.text ? `<div class="post-body"><p>${escapeHtml(p.text)}</p></div>` : ''}
       ${p.comments.length ? `<div class="comments">${commentsHtml}</div>` : ''}
       <div class="reply-row">
@@ -1353,12 +1447,9 @@ function renderPosts(){
     list.appendChild(div);
   });
 
-  // Scorre sempre fino in fondo, come una chat: il post più recente è l'ultimo
-  // della lista, quindi lo mostriamo subito senza bisogno di scorrere a mano.
-  requestAnimationFrame(() => {
-    const main = document.querySelector('main');
-    if(main) main.scrollTop = main.scrollHeight;
-  });
+  // Come in una chat: si parte dal messaggio più recente (in fondo). Se stavi
+  // leggendo più su, il ridisegno non ti sposta.
+  if(devoScendere) avviaAutoScrollFeed();
 }
 
 async function addComment(i){
@@ -1870,6 +1961,7 @@ async function caricaClassificaQuiz(){
       <div class="rank-name ${r.user_id === currentUser.id ? 'rank-me' : ''}">${escapeHtml(r.full_name || r.username || '?')}</div>
       <div class="rank-pts">${r.punti} pt</div>
       <div class="rank-val">🔥 ${r.streak}</div>
+      ${currentUser.isAdmin ? `<button class="rank-reset" title="Azzera lo streak di ${escapeHtml(r.full_name || r.username || '')}" onclick="azzeraStreakUtente('${r.user_id}', ${escapeHtml(JSON.stringify(r.full_name || r.username || ''))})">↺</button>` : ''}
     </div>`).join('');
 }
 
@@ -1894,6 +1986,7 @@ async function disegnaAdminQuiz(){
       <textarea id="nuoviArgomenti" placeholder="Un argomento per riga, ad esempio:&#10;Le guerre persiane: Maratona e Salamina&#10;Grammatica latina: il gerundio"></textarea>
       <button class="btn" onclick="aggiungiArgomentiQuiz()">Aggiungi alla lista</button>
       <button class="btn btn-ghost" style="margin-top:8px" onclick="rigeneraQuizOggi()">↻ Rigenera il quiz di oggi</button>
+      <button class="btn btn-ghost" style="margin-top:8px;color:#c62828;border-color:#c62828" onclick="azzeraStreakTutti()">🗑 Azzera streak e classifica di tutti</button>
       <div id="qdAdminMsg" class="qd-err"></div>
       <div style="margin-top:12px">${righe}</div>
     </div>`;
@@ -1921,6 +2014,25 @@ async function fissaArgomentoOggi(id){
   elq('qdAdminMsg').textContent = error ? 'Errore: ' + error.message
     : (gia ? 'Il quiz di oggi esiste già: premi "Rigenera il quiz di oggi" per usare questo argomento.' : '');
   disegnaAdminQuiz();
+}
+
+async function azzeraStreakUtente(id, nome){
+  if(!currentUser?.isAdmin) return;
+  if(!confirm('Azzerare lo streak e i punti di ' + nome + '? I suoi quiz fatti verranno cancellati.')) return;
+  const { error } = await sb.from('quiz_attempts').delete().eq('user_id', id);
+  if(error){ alert('Errore: ' + error.message); return; }
+  quizCorrente = null;
+  await apriSezioneQuiz();
+}
+
+async function azzeraStreakTutti(){
+  if(!currentUser?.isAdmin) return;
+  if(!confirm('Azzerare streak, punti e classifica di TUTTA la classe? Non si può annullare.')) return;
+  if(!confirm('Sei proprio sicuro? Tutti i quiz fatti finora verranno cancellati.')) return;
+  const { error } = await sb.from('quiz_attempts').delete().not('user_id', 'is', null);
+  if(error){ alert('Errore: ' + error.message + ' (hai eseguito lo SQL quiz-reset-admin?)'); return; }
+  quizCorrente = null;
+  await apriSezioneQuiz();
 }
 
 async function rigeneraQuizOggi(){
